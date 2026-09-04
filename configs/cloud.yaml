@@ -1,0 +1,32 @@
+defaults:
+  - experiment: mod_a
+  - run: full
+  - _self_
+
+runtime: cloud
+device: cuda
+paths:
+  data_root: ${hydra:runtime.cwd}/data/cloud/brats
+  image_root: ${data.image_root}
+  output_root: ${hydra:runtime.cwd}/outputs
+  experiment_output: ${paths.output_root}/${runtime}/${experiment.name}/${run.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  checkpoint_dir: ${paths.experiment_output}/checkpoints
+  manifest: ${hydra:runtime.cwd}/data/manifests/brats_seed42.json
+third_party:
+  transunet_root: null
+  pretrained_path: null
+tracking:
+  enabled: false
+  mode: disabled
+  project: token-mixer-placement-matters
+  entity: null
+  run_name: null
+  log_every_steps: 20
+  log_images: false
+  log_checkpoints: false
+  directory: ${paths.output_root}/wandb
+hydra:
+  run:
+    dir: ${paths.experiment_output}
+  job:
+    chdir: false

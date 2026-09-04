@@ -6,9 +6,16 @@ from pathlib import Path
 from tqdm import tqdm
 import shutil
 
-USER = os.environ["USER"]
-BRATS_SRC = Path(f"/scratch/{USER}/brats-mamba/data")
-NNUNET_RAW = Path(f"/scratch/{USER}/nnUNet_raw")
+def _path_from_env(name: str, default: Path) -> Path:
+    value = os.environ.get(name)
+    return Path(value) if value else default
+
+
+PROJECT_ROOT = Path.cwd()
+BRATS_SRC = _path_from_env("BRATS_SRC", PROJECT_ROOT / "data" / "brats")
+NNUNET_RAW = _path_from_env(
+    "NNUNET_RAW", PROJECT_ROOT / "data" / "nnUNet_raw"
+)
 
 DATASET_NAME = "Dataset100_BraTSAfrica"
 OUT_DIR = NNUNET_RAW / DATASET_NAME

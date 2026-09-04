@@ -1,0 +1,17 @@
+name: full
+max_cases: null
+batch_size: 2
+num_workers: 8
+workers: 8
+pin_memory: true
+persistent_workers: true
+drop_last: false
+epochs: 30
+phase1_epochs: 20
+phase2_epochs: 80
+validation_interval: 5
+use_amp: true
+seed: 42
+deterministic: true
+resume: null
+warm_start: null

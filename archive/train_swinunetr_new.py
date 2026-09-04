@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import argparse
+from pathlib import Path
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -36,13 +37,22 @@ WEIGHT_DECAY = 1e-5
 ROI_SIZE = (96, 96, 96) # Input patch size for the hierarchical transformer layers
 
 # ── 2. PATHS & DIRECTORIES ────────────────────────────────────────────────────
-WORKSPACE = "/home/brainiac/projects/def-uanazodo-ab/brainiac"
-CHECKPOINT_DIR = os.path.join(WORKSPACE, "checkpoints")
-VIS_DIR = os.path.join(WORKSPACE, "visualizations")
+WORKSPACE = os.environ.get("TOKEN_MIXER_WORKSPACE", str(Path.cwd()))
+CHECKPOINT_DIR = os.environ.get(
+    "SWINUNETR_CHECKPOINT_DIR", os.path.join(WORKSPACE, "checkpoints")
+)
+VIS_DIR = os.environ.get(
+    "SWINUNETR_VIS_DIR", os.path.join(WORKSPACE, "visualizations")
+)
 # ADDED: separate outputs for final test-set evaluation (CSV + overlay PNGs),
 # kept apart from VIS_DIR (which holds periodic mid-training snapshots).
-TEST_OUTPUT_DIR = os.path.join(WORKSPACE, "outputs", "swinunetr_test")
-TEST_VIS_DIR = os.path.join(TEST_OUTPUT_DIR, "overlays")
+TEST_OUTPUT_DIR = os.environ.get(
+    "SWINUNETR_TEST_OUTPUT_DIR",
+    os.path.join(WORKSPACE, "outputs", "swinunetr_test"),
+)
+TEST_VIS_DIR = os.environ.get(
+    "SWINUNETR_TEST_VIS_DIR", os.path.join(TEST_OUTPUT_DIR, "overlays")
+)
 
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 os.makedirs(TEST_OUTPUT_DIR, exist_ok=True)

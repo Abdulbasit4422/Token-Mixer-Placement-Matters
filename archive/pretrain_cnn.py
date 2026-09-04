@@ -5,7 +5,7 @@
 # ║  Matches Mod B Architecture Baseline Parity                          ║
 # ╚══════════════════════════════════════════════════════════════════════╝
 #
-# Saves: ~/projects/def-uanazodo-ab/brats-mamba/checkpoints/encoder_best.pth
+# Saves: encoder_best.pth under configured checkpoint directory.
 # Run via: sbatch run_pretrain_cnn.slurm
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ torch.backends.cudnn.benchmark = True
 # ── Config (Exact parity with Mod A) ──────────────────────────────────────────
 @dataclass
 class PretrainConfig:
-    # DRAC paths — resolved from $USER at runtime
+    # Runtime paths are supplied through environment overrides.
     data_dir:       str   = ""   # set in main()
     checkpoint_dir: str   = ""   # set in main()
     output_dir:     str   = ""   # set in main()
@@ -397,16 +397,26 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     assert torch.cuda.is_available(), "CUDA is required. Run via sbatch."
 
-    # 100% Isolated Workspace
-    workspace = Path("/home/brainiac/projects/def-uanazodo-ab/brainiac")
-    
-    # Keep fetching datasets from the high-speed scratch drive
-    scratch   = Path("/scratch/brainiac/brats-mamba")
+    # Resolve paths from environment overrides, falling back to current directory.
+    project_root = Path.cwd()
+    workspace = Path(os.environ.get("TOKEN_MIXER_WORKSPACE", str(project_root)))
+    scratch = Path(os.environ.get(
+        "TOKEN_MIXER_SCRATCH", str(project_root / "data" / "scratch")
+    ))
+    data_dir = Path(os.environ.get(
+        "IMAGENET_DATA_ROOT", str(scratch / "data" / "imagenet")
+    ))
+    checkpoint_dir = Path(os.environ.get(
+        "TOKEN_MIXER_CHECKPOINT_ROOT", str(workspace / "checkpoints")
+    ))
+    output_dir = Path(os.environ.get(
+        "TOKEN_MIXER_OUTPUT_ROOT", str(workspace / "outputs" / "pretrain_cnn")
+    ))
 
     cfg = PretrainConfig(
-        data_dir       = str(scratch / "data" / "imagenet"),
-        checkpoint_dir = str(workspace / "checkpoints"),              # Saves encoder_best.pth here
-        output_dir     = str(workspace / "outputs" / "pretrain_cnn"), # Saves charts/metrics here
+        data_dir       = str(data_dir),
+        checkpoint_dir = str(checkpoint_dir),              # Saves encoder_best.pth here
+        output_dir     = str(output_dir),                  # Saves charts/metrics here
     )
     cfg.__post_init__()
 

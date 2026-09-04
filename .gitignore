@@ -1,0 +1,81 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.omo/
+.modal.toml
+
+# Env files (may contain secrets referenced via {env:VAR} substitution)
+.env
+.env.*
+!.env.example
+
+# Local OpenCode configuration
+opencode.jsonc
+.opencode/
+
+# Jupyter startup scripts (contain secrets)
+run-jup.sh
+run-jup.ps1
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Hydra run outputs and runtime metadata
+outputs/
+multirun/
+.hydra/
+
+# W&B local and offline runs
+wandb/
+outputs/wandb/
+
+# Saved model weights / checkpoints
+/models/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Downloaded/large runtime datasets. Keep directory markers and local docs.
+data/local/**
+!data/local/.gitkeep
+!data/local/README.md
+data/cloud/**
+!data/cloud/.gitkeep
+!data/cloud/README.md
+
+# Retain project documentation explicitly.
+!README.md
+!data/README.md
+
+# Known large dataset formats (also ignored outside runtime roots)
+*.tar
+*.tar.gz
+*.zip
+*.nii
+*.nii.gz
+*.dcm
+*.h5
+*.parquet
+
+# Split manifests are small, reviewable metadata and remain trackable.
+!data/manifests/
+!data/manifests/**
+
+# Tooling caches
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# OS junk
+.DS_Store
+Thumbs.db

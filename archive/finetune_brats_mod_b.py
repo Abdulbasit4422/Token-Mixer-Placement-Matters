@@ -181,16 +181,33 @@ CLASS_NAMES = ["ET", "TC", "WT"]
 ET_LABEL: Optional[int] = None
 
 
+def _path_from_env(name: str, default: Path) -> Path:
+    value = os.environ.get(name)
+    return Path(value) if value else default
+
+
+PROJECT_ROOT = Path.cwd()
+WORKSPACE = _path_from_env("TOKEN_MIXER_WORKSPACE", PROJECT_ROOT)
+DATA_ROOT = _path_from_env(
+    "BRATS_DATA_ROOT",
+    PROJECT_ROOT / "data" / "brats-africa" / "BraTS-Africa",
+)
+CHECKPOINT_ROOT = _path_from_env(
+    "TOKEN_MIXER_CHECKPOINT_ROOT", WORKSPACE / "checkpoints"
+)
+OUTPUT_ROOT = _path_from_env("TOKEN_MIXER_OUTPUT_ROOT", WORKSPACE / "outputs")
+
+
 @dataclass
 class Config:
     # â”€â”€ Paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    data_root:         str  = "/home/brainiac/scratch/brats-mamba/data/brats-africa/BraTS-Africa Dataset/BraTS-Africa"
+    data_root:         str  = str(DATA_ROOT)
     data_subdirs:      List = field(
         default_factory=lambda: ["51_OtherNeoplasms", "95_Glioma"])
     # CNN encoder checkpoint from imagenet_pretrain.py (2D, inflated to 3D)
-    cnn_pretrain_ckpt: str  = "/home/brainiac/projects/def-uanazodo-ab/brainiac/checkpoints/encoder_best.pth"
-    checkpoint_dir:    str  = "/home/brainiac/projects/def-uanazodo-ab/brainiac/checkpoints/mod_b"
-    output_dir:        str  = "/home/brainiac/projects/def-uanazodo-ab/brainiac/outputs/mod_b"
+    cnn_pretrain_ckpt: str  = str(CHECKPOINT_ROOT / "encoder_best.pth")
+    checkpoint_dir:    str  = str(CHECKPOINT_ROOT / "mod_b")
+    output_dir:        str  = str(OUTPUT_ROOT / "mod_b")
 
     # ── Architecture ──────────────────────────────────────────────────────────
     in_channels:   int   = 4
@@ -1906,8 +1923,7 @@ def main():
     print("  Ablation: decoder-side Mamba selective attention", flush=True)
     print("="*60, flush=True)
 
-    user = os.environ["USER"]
-    workspace = Path(f"/home/{user}/projects/def-uanazodo-ab/brainiac")
+    workspace = _path_from_env("TOKEN_MIXER_WORKSPACE", Path.cwd())
 
     # --- NEW: Auto-detect local NVMe storage ---
     slurm_tmp = os.environ.get("SLURM_TMPDIR")
@@ -1915,7 +1931,10 @@ def main():
         data_path = Path(slurm_tmp) / "BraTS-Africa"
         print(f"🚀 Using ultra-fast local NVMe storage: {data_path}", flush=True)
     else:
-        data_path = Path(f"/scratch/{user}/brats-mamba/data/brats-africa/BraTS-Africa Dataset/BraTS-Africa")
+        data_path = _path_from_env(
+            "BRATS_DATA_ROOT",
+            Path.cwd() / "data" / "brats-africa" / "BraTS-Africa",
+        )
         print(f"⚠️ Using network Lustre storage: {data_path}", flush=True)
 
     cfg = Config(

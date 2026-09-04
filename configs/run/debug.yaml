@@ -1,0 +1,17 @@
+name: debug
+max_cases: 2
+batch_size: 1
+num_workers: 0
+workers: 0
+pin_memory: false
+persistent_workers: false
+drop_last: false
+epochs: 1
+phase1_epochs: 1
+phase2_epochs: 1
+validation_interval: 1
+use_amp: false
+seed: 42
+deterministic: true
+resume: null
+warm_start: null

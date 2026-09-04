@@ -1,0 +1,8 @@
+name: imagenet
+dataset_id: imagenet
+image_root: ${hydra:runtime.cwd}/data/${runtime}/imagenet
+root: ${data.image_root}
+image_size: 96
+in_channels: 3
+noise_std: 0.15
+val_fraction: 0.05

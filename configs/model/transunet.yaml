@@ -1,0 +1,12 @@
+name: transunet
+architecture: TransUNet
+in_channels: 4
+image_size: [224, 224]
+patch_size: 16
+vit_name: R50-ViT-B_16
+n_skip: 3
+num_classes: 4
+canonical_num_classes: 3
+external_num_classes: 4
+output_kind: logits
+pretrained_path: null

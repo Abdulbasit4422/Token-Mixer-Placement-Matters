@@ -1,0 +1,8 @@
+name: cnn_pretrain
+architecture: denoising_autoencoder
+in_channels: 3
+feature_size: 32
+depths: [1, 1, 1, 1]
+image_size: 96
+mlp_ratio: 4.0
+norm_num_groups: null

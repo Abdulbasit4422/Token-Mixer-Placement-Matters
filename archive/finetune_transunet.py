@@ -14,12 +14,15 @@ from torch.utils.data import Dataset, DataLoader
 from torch.amp import autocast, GradScaler
 from medpy.metric.binary import dc, hd95
 
-# ── 100% Isolated HPC Workspace Configuration ─────────────────────────────────
-USER = os.environ["USER"]
-WORKSPACE = Path(f"/home/{USER}/projects/def-uanazodo-ab/brainiac")
-SCRATCH   = Path(f"/scratch/{USER}/brats-mamba")
+# ── Environment-driven workspace configuration ────────────────────────────────
+PROJECT_ROOT = Path.cwd()
+WORKSPACE = Path(os.environ.get("TOKEN_MIXER_WORKSPACE", str(PROJECT_ROOT)))
+SCRATCH = Path(os.environ.get(
+    "TOKEN_MIXER_SCRATCH", str(PROJECT_ROOT / "data" / "scratch")
+))
 
-sys.path.insert(0, str(WORKSPACE / "TransUNet"))
+TRANSUNET_ROOT = Path(os.environ.get("TRANSUNET_ROOT", str(WORKSPACE / "TransUNet")))
+sys.path.insert(0, str(TRANSUNET_ROOT))
 import ml_collections
 from networks.vit_seg_modeling import VisionTransformer as ViT_seg
 from networks.vit_seg_modeling_resnet_skip import StdConv2d
@@ -40,8 +43,13 @@ LR          = 0.00001  # FIX: Restored to standard stable ViT fine-tuning rate f
 VAL_SPLIT   = 0.2
 
 # Path routing
-BRATS_SRC   = SCRATCH / "data" / "brats-africa" / "BraTS-Africa Dataset" / "BraTS-Africa"
-CACHE_DIR   = SCRATCH / "transunet_cache"
+BRATS_SRC = Path(os.environ.get(
+    "BRATS_DATA_ROOT",
+    str(SCRATCH / "data" / "brats-africa" / "BraTS-Africa"),
+))
+CACHE_DIR = Path(os.environ.get(
+    "TRANSUNET_CACHE_DIR", str(SCRATCH / "transunet_cache")
+))
 CHECKPT_DIR = WORKSPACE / "checkpoints" / "transunet"
 OUTPUT_DIR  = WORKSPACE / "outputs" / "transunet"
 
@@ -144,7 +152,10 @@ def get_r50_b16_config():
     config.classifier                         = 'seg'
     config.representation_size                = None
     config.resnet_pretrained_path             = None
-    config.pretrained_path                    = str(WORKSPACE / 'TransUNet/model/vit_checkpoint/imagenet21k/R50+ViT-B_16.npz')
+    config.pretrained_path = os.environ.get(
+        "TRANSUNET_PRETRAINED",
+        str(TRANSUNET_ROOT / "model" / "vit_checkpoint" / "imagenet21k" / "R50+ViT-B_16.npz"),
+    )
     config.patch_size                         = 16
     config.decoder_channels                   = (256, 128, 64, 16)
     config.skip_channels                      = [512, 256, 64, 16]

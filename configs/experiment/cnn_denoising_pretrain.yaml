@@ -1,0 +1,33 @@
+defaults:
+  - /data@_global_.data: imagenet
+  - /model@_global_.model: cnn_pretrain
+  - _self_
+
+name: cnn_denoising_pretrain
+model_name: cnn_pretrain
+data_name: imagenet
+training:
+  loss: mse
+  optimizer:
+    name: adamw
+    weight_decay: 0.05
+  scheduler:
+    name: cosine
+    interval: update
+    eta_min: 1.0e-6
+  phases:
+    - name: pretrain
+      epochs: ${run.epochs}
+      freeze_encoder: false
+      encoder_lr: 1.0e-3
+      decoder_lr: 1.0e-3
+  batch_size: ${run.batch_size}
+  num_workers: ${run.num_workers}
+  pin_memory: ${run.pin_memory}
+  persistent_workers: ${run.persistent_workers}
+  drop_last: true
+  validation_interval: ${run.validation_interval}
+  checkpoint_metric: mse
+  monitor: mse
+  maximize: false
+  use_amp: ${run.use_amp}

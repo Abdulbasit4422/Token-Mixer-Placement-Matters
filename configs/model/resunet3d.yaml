@@ -1,0 +1,16 @@
+name: resunet3d
+architecture: ResUNet3D
+in_channels: 4
+out_channels: 3
+base_features: 32
+depths: [2, 2, 2, 2, 2]
+normalization: instance
+norm_num_groups: null
+norm_affine: true
+# Keep local/debug runs offline. Enable explicitly with download=true or an
+# injected source_model when ImageNet transfer is part of a run.
+imagenet_transfer:
+  enabled: false
+  download: false
+  cache_dir: null
+  source: null

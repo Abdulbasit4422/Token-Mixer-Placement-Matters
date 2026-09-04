@@ -7,10 +7,10 @@ ResEncUNet-M) whose encoder is initialised from a ResNet-18 model
 pre-trained on ImageNet-1k via timm.  2-D weights are inflated to 3-D
 by repeating along the depth axis (scale-preserving inflation).
 
-Cluster paths (Narval / Compute Canada)
-  nnUNet raw data : /scratch/$USER/nnUNet_raw/Dataset100_BraTSAfrica/
-  Workspace       : /home/$USER/projects/def-uanazodo-ab/brainiac/
-  venv            : /lustre06/project/6097524/brats-mamba/venv/
+Paths are supplied through command-line arguments or environment variables.
+  nnUNet raw data : --data_root or $SLURM_TMPDIR/Dataset100_BraTSAfrica
+  Workspace       : $TOKEN_MIXER_WORKSPACE (defaults to current directory)
+  Environment     : active Python environment
 
 Training strategy
   Phase 1 (20 ep) – encoder frozen, decoder warms up   lr=1e-3
@@ -65,7 +65,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 @dataclass
 class Config:
     # ── data ──
-    user:          str   = field(default_factory=lambda: os.environ.get("USER","brainiac"))
+    user:          str   = field(default_factory=lambda: os.environ.get("USER", ""))
     data_root:     str   = ""   # resolved in __post_init__
     checkpoint_dir:str   = ""
     output_dir:    str   = ""
@@ -97,8 +97,7 @@ class Config:
     grad_clip:     float = 1.0
 
     def __post_init__(self):
-        u  = self.user
-        ws = Path(f"/home/{u}/projects/def-uanazodo-ab/brainiac")
+        ws = Path(os.environ.get("TOKEN_MIXER_WORKSPACE", str(Path.cwd())))
 
         # data_root: prefer SLURM_TMPDIR fast SSD copy, fall back to scratch
         if not self.data_root:
@@ -107,7 +106,11 @@ class Config:
             if local and (local / "imagesTr").exists():
                 self.data_root = str(local)
             else:
-                self.data_root = f"/scratch/{u}/nnUNet_raw/Dataset100_BraTSAfrica"
+                raw_root = Path(os.environ.get(
+                    "NNUNET_RAW_ROOT",
+                    str(Path.cwd() / "data" / "nnUNet_raw"),
+                ))
+                self.data_root = str(raw_root / "Dataset100_BraTSAfrica")
 
         if not self.checkpoint_dir:
             self.checkpoint_dir = str(ws / "checkpoints" / "nnunet_brats")

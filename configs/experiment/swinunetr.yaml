@@ -1,0 +1,32 @@
+defaults:
+  - /data@_global_.data: brats
+  - /model@_global_.model: swinunetr
+  - _self_
+
+name: swinunetr
+model_name: swinunetr
+data_name: brats
+training:
+  loss: dice_ce
+  optimizer:
+    name: adamw
+    weight_decay: 1.0e-4
+  scheduler:
+    name: cosine
+    interval: epoch
+  phases:
+    - name: train
+      epochs: ${run.phase2_epochs}
+      freeze_encoder: false
+      encoder_lr: 1.0e-4
+      decoder_lr: 1.0e-4
+  batch_size: ${run.batch_size}
+  num_workers: ${run.num_workers}
+  pin_memory: ${run.pin_memory}
+  persistent_workers: ${run.persistent_workers}
+  drop_last: false
+  validation_interval: ${run.validation_interval}
+  checkpoint_metric: mean_dice
+  monitor: mean_dice
+  maximize: true
+  use_amp: ${run.use_amp}
