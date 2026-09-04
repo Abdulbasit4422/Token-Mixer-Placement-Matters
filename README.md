@@ -292,7 +292,7 @@ automatically comparable across those protocols. Debug runs verify data flow
 and tensor contracts; they do not establish segmentation quality or justify a
 full training run.
 
-Current verification snapshot: `uv run pytest -q` reports **394 passed, 6
+Current verification snapshot: `uv run pytest -q` reports **397 passed, 6
 skipped** (five symlink-capability skips and one external TransUNet integration
 skip). No real-data or full-dataset training run has been performed, and the
 external TransUNet checkout/pretrained asset validation remains unverified.
