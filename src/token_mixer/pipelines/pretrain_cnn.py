@@ -22,6 +22,7 @@ from token_mixer.models.cnn_pretrain import (
     mse_loss,
 )
 from token_mixer.pipelines._baseline_common import (
+    _copy_resume_best,
     _flatten_training_config,
     _invoke_fit,
     _max_cases,
@@ -800,6 +801,8 @@ def run_cnn_denoising_pretrain(cfg: DictConfig) -> FitResult:
     elif warm_start is not None:
         run_config["source_checkpoint"] = str(warm_start)
         run_config["resume_mode"] = "warm_start"
+    if resume is not None:
+        _copy_resume_best(checkpoints, resume)
     tracking_config = _plain(_first_value(cfg, (("tracking",),), default={}))
     tracker = create_tracker(_mapping(tracking_config, "tracking"), run_config)
     result = _invoke_fit(
@@ -821,8 +824,6 @@ def run_cnn_denoising_pretrain(cfg: DictConfig) -> FitResult:
     )
     if not isinstance(result, FitResult):
         raise TypeError("shared training engine must return FitResult")
-    if resume is not None:
-        checkpoints.copy_best_from(resume)
     best_payload = _restore_best_checkpoint(
         model,
         checkpoints,

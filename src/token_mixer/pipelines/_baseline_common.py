@@ -1077,6 +1077,19 @@ def _restore_best(
     checkpoints.load_model(path, model, expected_metadata=expected_metadata)
 
 
+def _copy_resume_best(
+    checkpoints: CheckpointManager, resume: Path
+) -> Path:
+    source_best = CheckpointManager._best_source(resume)
+    destination = checkpoints.copy_best_from(resume)
+    if destination is None:
+        raise FileNotFoundError(
+            f"source best checkpoint '{source_best}' is absent; "
+            "cannot continue exact resume"
+        )
+    return destination
+
+
 def _accepts_keyword(function: Callable[..., Any], name: str) -> bool:
     try:
         parameters = inspect.signature(function).parameters.values()
@@ -1211,6 +1224,8 @@ def run_3d_baseline(
         metadata["source_checkpoint"] = str(warm_start)
         metadata["resume_mode"] = "warm_start"
     run_config = _engine_config(cfg, metadata, device)
+    if resume is not None:
+        _copy_resume_best(checkpoints, resume)
     tracker = tracker_builder(_tracking_config(cfg), run_config)
     evaluator = evaluator_builder(cfg, device)
     loss_fn = loss_builder(cfg)
@@ -1232,8 +1247,6 @@ def run_3d_baseline(
         warm_start=warm_start,
         loader_generator=generator,
     )
-    if resume is not None:
-        checkpoints.copy_best_from(resume)
     _restore_best(
         model,
         checkpoints,
@@ -1301,6 +1314,8 @@ def run_2d_baseline(
         metadata["source_checkpoint"] = str(warm_start)
         metadata["resume_mode"] = "warm_start"
     run_config = _engine_config(cfg, metadata, device)
+    if resume is not None:
+        _copy_resume_best(checkpoints, resume)
     tracker = tracker_builder(_tracking_config(cfg), run_config)
     evaluator = evaluator_builder(cfg, device)
     loss_fn = loss_builder(cfg)
@@ -1322,8 +1337,6 @@ def run_2d_baseline(
         warm_start=warm_start,
         loader_generator=generator,
     )
-    if resume is not None:
-        checkpoints.copy_best_from(resume)
     _restore_best(
         model,
         checkpoints,

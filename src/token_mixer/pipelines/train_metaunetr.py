@@ -19,6 +19,7 @@ from token_mixer.data.splits import load_split_manifest
 from token_mixer.evaluation.inference import evaluate_full_volumes
 from token_mixer.models.metaunetr.variants import build_metaunetr
 from token_mixer.pipelines._baseline_common import (
+    _copy_resume_best,
     _flatten_training_config,
     _loader_parts,
     _limit_cases,
@@ -925,6 +926,10 @@ def run_metaunetr(cfg: DictConfig | Mapping[str, Any]) -> FitResult:
     run_config = _engine_config(cfg, metadata)
     run_config["device"] = str(effective_device)
 
+    if resume is not None:
+        if checkpoints is None:
+            raise ValueError("resume and warm_start require a checkpoint manager")
+        _copy_resume_best(checkpoints, resume)
     tracking_config = _plain(_first_value(cfg, (("tracking",),), default={}))
     tracker = create_tracker(_mapping(tracking_config, "tracking"), run_config)
     result = _invoke_fit(
@@ -951,8 +956,6 @@ def run_metaunetr(cfg: DictConfig | Mapping[str, Any]) -> FitResult:
     if checkpoints is None:
         raise ValueError("MetaUNETR test evaluation requires enabled checkpointing")
 
-    if resume is not None:
-        checkpoints.copy_best_from(resume)
     _restore_best(
         model,
         checkpoints,

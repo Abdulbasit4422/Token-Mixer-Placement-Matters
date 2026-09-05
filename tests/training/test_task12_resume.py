@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from token_mixer.pipelines._baseline_common import (
     resume_path,
+    run_2d_baseline,
     run_3d_baseline,
     warm_start_path,
 )
@@ -295,6 +296,250 @@ def test_exact_resume_copies_source_best_into_new_output(tmp_path: Path):
     assert torch.equal(target_model.encoder.weight, torch.ones_like(target_model.encoder.weight))
     assert (target_root / "best.pt").read_bytes() == source_best_bytes
     assert (source_root / "best.pt").read_bytes() == source_best_bytes
+
+
+def test_exact_resume_seeds_best_before_fit_and_keeps_target_improvement(
+    tmp_path: Path,
+):
+    source_root = tmp_path / "source" / "checkpoints"
+    target_root = tmp_path / "target" / "checkpoints"
+    source_manager = CheckpointManager(source_root)
+    source_model = _TinyEncoderDecoder()
+    with torch.no_grad():
+        source_model.encoder.weight.fill_(1.0)
+    source_manager.save("best", source_model, None, None, None, {"epoch": 1, "metric": 0.5})
+    source_last = source_manager.save(
+        "last", source_model, None, None, None, {"epoch": 1, "metric": 0.5}
+    )
+    source_best_bytes = (source_root / "best.pt").read_bytes()
+    target_model = _TinyEncoderDecoder()
+
+    def fake_fit(*args, **kwargs):
+        del kwargs
+        checkpoints = args[-1]
+        seeded_model = _TinyEncoderDecoder()
+        checkpoints.load_model(checkpoints.root / "best.pt", seeded_model)
+        assert torch.equal(
+            seeded_model.encoder.weight,
+            torch.ones_like(seeded_model.encoder.weight),
+        )
+        with torch.no_grad():
+            target_model.encoder.weight.fill_(2.0)
+        checkpoints.save(
+            "best",
+            target_model,
+            None,
+            None,
+            None,
+            {"epoch": 2, "metric": 0.75, "config": args[6]},
+        )
+        return FitResult(0.75, 2, [])
+
+    result = run_3d_baseline(
+        _config(target_root)
+        | {"resume": str(source_last), "spacing": (1.0, 1.0, 1.0)},
+        architecture="Tiny",
+        model_builder=lambda _cfg: target_model,
+        loader_builder=lambda _cfg, _generator: ([], [], []),
+        evaluator_builder=lambda _cfg, _device: lambda _model, _loader: {"mean_dice": 0.75},
+        loss_builder=lambda _cfg: nn.MSELoss(),
+        fit_fn=fake_fit,
+    )
+
+    assert result.test_metrics == {"mean_dice": 0.75}
+    assert torch.equal(target_model.encoder.weight, torch.full_like(target_model.encoder.weight, 2.0))
+    assert (source_root / "best.pt").read_bytes() == source_best_bytes
+
+
+def test_exact_resume_requires_source_best_before_tracker_or_fit(tmp_path: Path):
+    events: list[str] = []
+
+    def tracker_builder(*_args):
+        events.append("tracker")
+        return _Tracker()
+
+    def fake_fit(*_args, **_kwargs):
+        events.append("fit")
+        return FitResult(0.5, 1, [])
+
+    with pytest.raises(FileNotFoundError, match="source best checkpoint"):
+        run_3d_baseline(
+            _config(tmp_path / "target" / "checkpoints")
+            | {
+                "resume": str(tmp_path / "source" / "checkpoints" / "last.pt"),
+                "spacing": (1.0, 1.0, 1.0),
+            },
+            architecture="Tiny",
+            model_builder=lambda _cfg: _TinyEncoderDecoder(),
+            loader_builder=lambda _cfg, _generator: ([], [], []),
+            evaluator_builder=lambda _cfg, _device: lambda _model, _loader: {
+                "mean_dice": 0.5
+            },
+            loss_builder=lambda _cfg: nn.MSELoss(),
+            tracker_builder=tracker_builder,
+            fit_fn=fake_fit,
+        )
+
+    assert events == []
+
+
+def test_exact_resume_noop_shared_engine_keeps_seeded_best(tmp_path: Path):
+    source_manager = CheckpointManager(tmp_path / "source" / "checkpoints")
+    source_config = _config() | {"architecture": "Tiny"}
+    _fit(
+        _TinyEncoderDecoder(),
+        source_manager,
+        source_config,
+        generator=torch.Generator().manual_seed(7),
+    )
+    source_best_bytes = (source_manager.root / "best.pt").read_bytes()
+    target_model = _TinyEncoderDecoder()
+
+    result = run_3d_baseline(
+        _config(tmp_path / "target" / "checkpoints")
+        | {
+            "architecture": "Tiny",
+            "epochs": 2,
+            "resume": str(source_manager.root / "last.pt"),
+            "spacing": (1.0, 1.0, 1.0),
+            "model": {"width": 1},
+            "phases": [
+                {
+                    "name": "train",
+                    "epochs": 2,
+                    "freeze_encoder": False,
+                    "encoder_lr": 0.01,
+                    "decoder_lr": 0.01,
+                }
+            ],
+        },
+        architecture="Tiny",
+        model_builder=lambda _cfg: target_model,
+        loader_builder=lambda _cfg, generator: (
+            _loader(generator),
+            _loader(),
+            _loader(),
+        ),
+        evaluator_builder=lambda _cfg, _device: lambda _model, _loader: {
+            "mean_dice": 0.5
+        },
+        loss_builder=lambda _cfg: nn.MSELoss(),
+    )
+
+    assert [record["epoch"] for record in result.history] == [1, 2]
+    assert result.best_metric == pytest.approx(0.5)
+    assert (tmp_path / "target" / "checkpoints" / "best.pt").read_bytes() == source_best_bytes
+    assert (source_manager.root / "best.pt").read_bytes() == source_best_bytes
+
+
+def test_exact_resume_requires_source_best_before_tracker_or_fit_in_shared_2d(
+    tmp_path: Path,
+):
+    events: list[str] = []
+
+    def tracker_builder(*_args):
+        events.append("tracker")
+        return _Tracker()
+
+    def fake_fit(*_args, **_kwargs):
+        events.append("fit")
+        return FitResult(0.5, 1, [])
+
+    with pytest.raises(FileNotFoundError, match="source best checkpoint"):
+        run_2d_baseline(
+            _config(tmp_path / "target" / "checkpoints")
+            | {"resume": str(tmp_path / "source" / "checkpoints" / "last.pt")},
+            architecture="Tiny",
+            model_builder=lambda _cfg: _TinyEncoderDecoder(),
+            loader_builder=lambda _cfg, _generator: ([], [], []),
+            evaluator_builder=lambda _cfg, _device: lambda _model, _loader: {
+                "mean_dice": 0.5
+            },
+            loss_builder=lambda _cfg: nn.MSELoss(),
+            tracker_builder=tracker_builder,
+            fit_fn=fake_fit,
+        )
+
+    assert events == []
+
+
+def test_exact_resume_requires_source_best_before_tracker_or_fit_for_cnn(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import token_mixer.pipelines.pretrain_cnn as pipeline
+
+    events: list[str] = []
+    model = _TinyEncoderDecoder()
+    config = {
+        "device": "cpu",
+        "seed": 17,
+        "deterministic": True,
+        "paths": {
+            "output_dir": str(tmp_path / "output"),
+            "checkpoint_dir": str(tmp_path / "target" / "checkpoints"),
+        },
+        "resume": str(tmp_path / "source" / "checkpoints" / "last.pt"),
+        "tracking": {"enabled": False},
+    }
+    monkeypatch.setattr(pipeline, "build_denoising_model", lambda _cfg: model)
+    monkeypatch.setattr(
+        pipeline,
+        "build_dataloaders",
+        lambda _cfg, _generator: ("train-loader", "val-loader"),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "create_tracker",
+        lambda *_args: events.append("tracker") or _Tracker(),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "fit",
+        lambda *_args, **_kwargs: events.append("fit") or FitResult(0.5, 1, []),
+    )
+
+    with pytest.raises(FileNotFoundError, match="source best checkpoint"):
+        pipeline.run_cnn_denoising_pretrain(config)
+
+    assert events == []
+
+
+def test_exact_resume_requires_source_best_before_tracker_or_fit_for_metaunetr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import token_mixer.pipelines.train_metaunetr as pipeline
+
+    events: list[str] = []
+    model = nn.Linear(1, 1, bias=False)
+    model.encoder = nn.Identity()
+    config = _config() | {
+        "loss": "bce",
+        "variant": "mod_a",
+        "spacing": (1.0, 1.0, 1.0),
+        "paths": {"checkpoint_dir": str(tmp_path / "target" / "checkpoints")},
+        "resume": str(tmp_path / "source" / "checkpoints" / "last.pt"),
+    }
+    monkeypatch.setattr(pipeline, "build_metaunetr", lambda *_args: model)
+    monkeypatch.setattr(
+        pipeline,
+        "build_loaders",
+        lambda _cfg, _generator: ("train-loader", "val-loader"),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "create_tracker",
+        lambda *_args: events.append("tracker") or _Tracker(),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "fit",
+        lambda *_args, **_kwargs: events.append("fit") or FitResult(0.5, 1, []),
+    )
+
+    with pytest.raises(FileNotFoundError, match="source best checkpoint"):
+        pipeline.run_metaunetr(config)
+
+    assert events == []
 
 
 def test_run_artifacts_include_reproducibility_contract(tmp_path: Path):
