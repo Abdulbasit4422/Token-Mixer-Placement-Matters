@@ -19,6 +19,7 @@ wheels/
 # Local OpenCode configuration
 opencode.jsonc
 .opencode/
+.superpowers/
 
 # Jupyter startup scripts (contain secrets)
 run-jup.sh
