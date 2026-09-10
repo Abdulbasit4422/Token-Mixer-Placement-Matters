@@ -13,6 +13,8 @@ Included surfaces:
 - `tests/` active tests and their test-collection names.
 - `configs/` Hydra profiles, experiment groups, and model groups.
 - Root `README.md` and `data/README.md`.
+- Tracked active repository guidance in `MODAL.md`, read as part of active-doc
+  scope review; no Modal code was written or run.
 - Tracked project planning/specification documents under `docs/superpowers/`, searched for historical references but not treated as cleanup targets.
 
 Excluded surfaces:
@@ -78,7 +80,7 @@ no test failures.
 Commands:
 
 ```text
-git grep -n -e '_torch_load' -- src/token_mixer tests configs README.md docs
+git grep -n -e '_torch_load' -- src/token_mixer tests configs README.md data docs
 git grep -n -e '_torch_load' -- archive
 ```
 
@@ -90,8 +92,11 @@ Active code results:
 - `src/token_mixer/pipelines/pretrain_cnn.py:583` defines a second private
   `_torch_load`, but the active file has no call to it and no active source,
   test, config, README, or data reference imports or calls it. The CNN pipeline
-  restores its best checkpoint through `CheckpointManager.load_model` at
-  `src/token_mixer/pipelines/pretrain_cnn.py:827`.
+  restores its best checkpoint through the direct
+  `CheckpointManager.load_model` call in
+  `src/token_mixer/pipelines/pretrain_cnn.py:601`; the implementation begins
+  at `src/token_mixer/training/checkpoints.py:382`. The pipeline invokes its
+  local restore helper at `pretrain_cnn.py:827`, which reaches that direct call.
 - The remaining active-tree matches are planning/specification text describing
   this audit and follow-up task. They are not runtime references.
 - The archive search returned no `_torch_load` matches.
@@ -234,6 +239,9 @@ or runtime behavior.
   300-second invocation; the timeout did not produce a test failure.
 - No full suite, compile pass, real-data run, external TransUNet run, full
   training run, cloud/GPU work, or external-data operation was started.
-- Before commit, `git diff --check` and a staged-diff inspection are required;
-  only this audit file is authorized for staging. The resulting commit and
-  final handoff status are recorded in `.superpowers/sdd/task-1-report.md`.
+- `git diff --check` completed with no output after the audit fix.
+- `git diff --cached --check` completed with no output after staging; staged
+  file inspection showed only this audit path, and the staged diff contained
+  only the four review corrections.
+- The fix commit and final handoff status are recorded in
+  `.superpowers/sdd/task-1-report.md`.
