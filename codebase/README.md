@@ -20,10 +20,10 @@ new maintainer:
 9. [Model guides](#model-guides) explain architecture-specific tensor paths and experiment choices.
 10. [Maintenance](MAINTENANCE.md) is the change checklist for source, tests, guides, and SVGs.
 
-`DATA.md`, `CONFIG.md`, `TRAINING.md`, `EVALUATE.md`, `REPRODUCIBILITY.md`,
-`TESTING.md`, `NOTEBOOKS.md`, and the model guides are planned follow-on guides.
-Links are kept here now so this index remains the canonical navigation surface
-while the documentation set is completed.
+`DATA.md` and `CONFIG.md` are active guides for Task 5. `TRAINING.md`,
+`EVALUATE.md`, `REPRODUCIBILITY.md`, `TESTING.md`, `NOTEBOOKS.md`, and the model
+guides remain planned follow-on guides. Links stay here so this index remains
+the canonical navigation surface while the documentation set is completed.
 
 ## System Map
 
@@ -105,8 +105,10 @@ and must pass the fact checklist in [MAINTENANCE.md](MAINTENANCE.md).
 | [transunet.svg](../assets/codebase/transunet.svg) | [TRANSUNET.md](TRANSUNET.md) |
 | [cnn-pretraining.svg](../assets/codebase/cnn-pretraining.svg) | [CNN_PRETRAINING.md](CNN_PRETRAINING.md) |
 
-These links name the planned assets; later documentation tasks create them.
-No generated diagram or documentation output is a source of truth.
+The data-flow and config-flow assets are owned by the active `DATA.md` and
+`CONFIG.md` guides; their SVG files are maintained separately from this index.
+The remaining links name planned assets for later documentation tasks. No
+generated diagram or documentation output is a source of truth.
 
 ## Source Of Truth
 
