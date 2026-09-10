@@ -181,7 +181,15 @@ case manifest or four-channel volume contract.
 
 ## Experiment Selectors
 
-The selector-to-group-to-runner contract is:
+The selector-to-group-to-runner contract is defined by these active experiment
+groups: [`configs/experiment/cnn_denoising_pretrain.yaml`](../configs/experiment/cnn_denoising_pretrain.yaml#L1-L33),
+[`configs/experiment/metaunetr_mamba.yaml`](../configs/experiment/metaunetr_mamba.yaml#L1-L38),
+[`configs/experiment/mod_a.yaml`](../configs/experiment/mod_a.yaml#L1-L38),
+[`configs/experiment/mod_b.yaml`](../configs/experiment/mod_b.yaml#L1-L38),
+[`configs/experiment/resunet3d.yaml`](../configs/experiment/resunet3d.yaml#L1-L37),
+[`configs/experiment/swinunetr.yaml`](../configs/experiment/swinunetr.yaml#L1-L32),
+and [`configs/experiment/transunet.yaml`](../configs/experiment/transunet.yaml#L1-L32).
+The resulting selector-to-group-to-runner contract is:
 
 | Selector | Data group | Model group | Runner |
 | --- | --- | --- | --- |
@@ -202,7 +210,12 @@ files set it to `false`.
 
 ## Model Groups
 
-Model groups define architecture-specific dimensions and options:
+Model groups define architecture-specific dimensions and options. The table is
+grounded in these active YAML files: [`configs/model/cnn_pretrain.yaml`](../configs/model/cnn_pretrain.yaml#L1-L8),
+[`configs/model/metaunetr.yaml`](../configs/model/metaunetr.yaml#L1-L16),
+[`configs/model/resunet3d.yaml`](../configs/model/resunet3d.yaml#L1-L16),
+[`configs/model/swinunetr.yaml`](../configs/model/swinunetr.yaml#L1-L15),
+and [`configs/model/transunet.yaml`](../configs/model/transunet.yaml#L1-L12).
 
 | Group | Contract highlights |
 | --- | --- |
@@ -216,8 +229,10 @@ The TransUNet model requires an external checkout root at
 `third_party.transunet_root` when the real external model is built. Its
 pretrained file may be supplied through `third_party.pretrained_path` or the
 model-level `pretrained_path`; both default to `null`. An injected external
-model is supported by `train_transunet::build_loaders`/model construction for
-tests and controlled integration without documenting a machine path.
+model is handled by [`src/token_mixer/pipelines/train_transunet.py::_build_model`](../src/token_mixer/pipelines/train_transunet.py#L64-L68), which passes it to
+[`src/token_mixer/models/transunet.py::build_transunet`](../src/token_mixer/models/transunet.py#L777-L844). That injected path bypasses external
+checkout and file loading, so tests and controlled integration need not document
+a machine path.
 
 ## Run Groups
 

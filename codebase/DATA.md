@@ -415,7 +415,7 @@ manifest is an expected preflight failure until prepared metadata is supplied.
 | Staging commit | Preparation rolls back installed cases; if rollback itself fails, the backup location is retained in the raised error | Preserve the reported backup for recovery |
 | Discovery | Missing roots, symlinks, empty files, or incomplete canonical cases are excluded | Exact five filenames below `cases/<case-id>` |
 | Array load | Non-3-D volumes or mismatched spatial shapes raise `ValueError` | All five NIfTI array shapes |
-| Labels | Missing ET markers, invalid ET override, non-3-D labels, ambiguous masks, or non-binary masks raise `ValueError` | `data.et_label`, raw values, and mask layout |
+| Labels | Auto-detection with no raw ET marker raises `ValueError`; explicit valid `et_label=3` or `4` bypasses detection and may allow absent ET voxels. Invalid ET override, non-3-D labels, ambiguous masks, or non-binary masks raise `ValueError` | `data.et_label`, raw values, and mask layout |
 | Manifest | Missing fields, invalid types/fractions, duplicate IDs, metadata mismatch, or absent case IDs raise `ValueError` | `dataset_id`, seed, fractions, IDs, and selected root |
 | Loader limits | `max_cases` is applied after manifest validation and ID mapping | Do not use it to hide missing data |
 | MONAI adapter | Optional transform raises an import error when MONAI is unavailable | Install the imaging extra only when this adapter is requested |
