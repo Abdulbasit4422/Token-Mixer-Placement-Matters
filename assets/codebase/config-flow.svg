@@ -1,0 +1,304 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1420" viewBox="0 0 2200 1420" role="img" aria-labelledby="config-flow-title config-flow-desc">
+  <title id="config-flow-title">Hydra configuration resolution and CLI dispatch flow</title>
+  <desc id="config-flow-desc">Profile, experiment, model, data, run, and command-line override inputs resolve into one Hydra DictConfig and runtime settings. The CLI then saves the composed configuration and dispatches the selected experiment runner. A boundary note makes clear that configuration composition is not training, and data preparation is a separate operation.</desc>
+  <style><![CDATA[
+    .canvas { fill: #f4f1eb; }
+    .panel { fill: #fffdf8; stroke: #c9d0cd; stroke-width: 2; }
+    .panel-resolution { fill: #f8fbfa; stroke: #9bbdb8; stroke-width: 2; }
+    .panel-dispatch { fill: #fffdf8; stroke: #c8b8a1; stroke-width: 2; }
+    .input-profile { fill: #e1efec; stroke: #286d68; stroke-width: 2; }
+    .input-experiment { fill: #f2e5ea; stroke: #96526d; stroke-width: 2; }
+    .input-model { fill: #ebe8f3; stroke: #655a91; stroke-width: 2; }
+    .input-data { fill: #e6eef4; stroke: #3c6c8c; stroke-width: 2; }
+    .input-run { fill: #f4ead8; stroke: #a66a22; stroke-width: 2; }
+    .resolve { fill: #e8f0e2; stroke: #4e753d; stroke-width: 2; }
+    .runtime { fill: #e6f0ef; stroke: #286d68; stroke-width: 2; }
+    .override { fill: #f2e5ea; stroke: #96526d; stroke-width: 2; }
+    .cli { fill: #ebe8f3; stroke: #655a91; stroke-width: 2; }
+    .runner { fill: #e8e9e6; stroke: #29383d; stroke-width: 2; }
+    .boundary { fill: #fff6e5; stroke: #a66a22; stroke-width: 2; }
+    .title { fill: #172329; font-family: Georgia, 'Times New Roman', serif; font-size: 42px; font-weight: 700; letter-spacing: -0.8px; }
+    .subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 18px; }
+    .kicker { fill: #655a91; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2.4px; }
+    .panel-label { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 1.8px; }
+    .panel-note { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .card-title { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 21px; font-weight: 700; }
+    .card-subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 15px; }
+    .body-small { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; }
+    .body-bold { fill: #1d2c31; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 700; }
+    .body-tiny { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .mono { fill: #1d2c31; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+    .mono-small { fill: #526064; font-family: 'Courier New', Courier, monospace; font-size: 12px; }
+    .mono-white { fill: #fffdf8; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+    .pill-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; }
+    .tag-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.6px; }
+    .rule { stroke: #b9c2bf; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #24343a; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .flow-soft { fill: none; stroke: #526064; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .flow-dashed { fill: none; stroke: #96526d; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 8 8; }
+    .dot { fill: #24343a; }
+    .port { fill: #4e753d; stroke: #fffdf8; stroke-width: 2; }
+  ]]></style>
+  <defs>
+    <marker id="arrow-dark" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#24343a"/>
+    </marker>
+    <marker id="arrow-soft" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#526064"/>
+    </marker>
+    <marker id="arrow-plum" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#96526d"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" x="0" y="0" width="2200" height="1420"/>
+
+  <g id="header">
+    <text class="kicker" x="68" y="58">TOKEN MIXER / CONFIGURATION CONTRACT</text>
+    <text class="title" x="68" y="108">Many selectors. One resolved runtime.</text>
+    <text class="subtitle" x="68" y="142">Hydra composes intent into a DictConfig; the CLI persists it, then dispatches exactly one runner.</text>
+    <rect x="1710" y="42" width="422" height="90" rx="18" fill="#172329"/>
+    <text class="pill-text" x="1736" y="70">SAFE MENTAL MODEL</text>
+    <text class="mono-white" x="1736" y="96">compose  →  resolve  →  dispatch</text>
+    <text x="1736" y="118" fill="#b9c7c6" font-family="'Trebuchet MS','Segoe UI',sans-serif" font-size="12">composition is configuration, not training</text>
+  </g>
+
+  <g id="inputs-panel">
+    <rect class="panel" x="40" y="190" width="640" height="1040" rx="28"/>
+    <rect x="40" y="190" width="9" height="1040" rx="4" fill="#655a91"/>
+    <text class="panel-label" x="70" y="230">01 / SELECTORS + DEFAULTS</text>
+    <text class="panel-note" x="70" y="254">inputs Hydra reads before runtime starts</text>
+
+    <g>
+      <rect class="input-profile" x="70" y="278" width="580" height="210" rx="20"/>
+      <rect x="92" y="300" width="158" height="25" rx="12" fill="#286d68"/>
+      <text class="pill-text" x="104" y="317">PROFILE FILES</text>
+      <text class="card-title" x="92" y="357">local or cloud</text>
+      <rect x="92" y="377" width="258" height="88" rx="12" fill="#f7fbfa" stroke="#8fbab4"/>
+      <text class="body-bold" x="108" y="400">local profile</text>
+      <text class="mono-small" x="108" y="421">runtime local · device auto</text>
+      <text class="mono-small" x="108" y="440">data_root data/local/brats</text>
+      <text class="body-tiny" x="108" y="458">defaults: mod_a + debug</text>
+      <rect x="370" y="377" width="258" height="88" rx="12" fill="#f7fbfa" stroke="#8fbab4"/>
+      <text class="body-bold" x="386" y="400">cloud profile</text>
+      <text class="mono-small" x="386" y="421">runtime cloud · device cuda</text>
+      <text class="mono-small" x="386" y="440">data_root data/cloud/brats</text>
+      <text class="body-tiny" x="386" y="458">defaults: mod_a + full</text>
+    </g>
+
+    <g>
+      <rect class="input-experiment" x="70" y="510" width="580" height="170" rx="20"/>
+      <rect x="92" y="532" width="188" height="25" rx="12" fill="#96526d"/>
+      <text class="pill-text" x="104" y="549">EXPERIMENT GROUP</text>
+      <text class="card-title" x="92" y="589">experiment = selector</text>
+      <text class="mono-small" x="92" y="615">mod_a · mod_b · metaunetr_mamba · resunet3d</text>
+      <text class="mono-small" x="92" y="635">swinunetr · transunet · cnn_denoising_pretrain</text>
+      <circle class="dot" cx="99" cy="657" r="3"/>
+      <text class="body-small" x="112" y="662">experiment defaults choose model + data groups</text>
+    </g>
+
+    <g>
+      <rect class="input-model" x="70" y="702" width="280" height="214" rx="20"/>
+      <rect x="92" y="724" width="128" height="25" rx="12" fill="#655a91"/>
+      <text class="pill-text" x="104" y="741">MODEL GROUP</text>
+      <text class="card-title" x="92" y="781">architecture</text>
+      <text class="body-small" x="92" y="808">MetaUNETR</text>
+      <text class="body-small" x="92" y="829">ResUNet3D</text>
+      <text class="body-small" x="92" y="850">SwinUNETR</text>
+      <text class="body-small" x="92" y="871">TransUNet</text>
+      <text class="body-small" x="92" y="892">CNN pretrain</text>
+    </g>
+
+    <g>
+      <rect class="input-data" x="370" y="702" width="280" height="214" rx="20"/>
+      <rect x="392" y="724" width="126" height="25" rx="12" fill="#3c6c8c"/>
+      <text class="pill-text" x="404" y="741">DATA GROUP</text>
+      <text class="card-title" x="392" y="781">dataset contract</text>
+      <text class="body-bold" x="392" y="810">brats</text>
+      <text class="body-small" x="446" y="810">4 modalities · ET/TC/WT</text>
+      <text class="body-bold" x="392" y="849">imagenet</text>
+      <text class="body-small" x="464" y="849">ImageFolder · 96px</text>
+      <text class="body-small" x="392" y="883">experiment imports one data file</text>
+      <text class="body-small" x="392" y="902">into global data settings</text>
+    </g>
+
+    <g>
+      <rect class="input-run" x="70" y="938" width="580" height="262" rx="20"/>
+      <rect x="92" y="960" width="126" height="25" rx="12" fill="#a66a22"/>
+      <text class="pill-text" x="104" y="977">RUN GROUP</text>
+      <text class="card-title" x="92" y="1017">debug or full</text>
+      <rect x="92" y="1036" width="258" height="62" rx="12" fill="#fff9ef" stroke="#d2ad79"/>
+      <text class="body-bold" x="108" y="1058">debug</text>
+      <text class="mono-small" x="108" y="1078">max_cases 2 · batch 1 · epochs 1</text>
+      <rect x="370" y="1036" width="258" height="62" rx="12" fill="#fff9ef" stroke="#d2ad79"/>
+      <text class="body-bold" x="386" y="1058">full</text>
+      <text class="mono-small" x="386" y="1078">all cases · batch 2 · epochs 30</text>
+      <rect x="92" y="1112" width="536" height="66" rx="12" fill="#fffdf8" stroke="#c68e4d"/>
+      <text class="body-bold" x="108" y="1137">CLI overrides</text>
+      <text class="mono-small" x="108" y="1158">--config-name cloud  experiment=mod_b  run=full</text>
+      <text class="mono-small" x="108" y="1174">model.base_channels=…</text>
+    </g>
+  </g>
+
+  <g id="resolution-panel">
+    <rect class="panel-resolution" x="715" y="190" width="625" height="1040" rx="28"/>
+    <rect x="715" y="190" width="9" height="1040" rx="4" fill="#4e753d"/>
+    <text class="panel-label" x="745" y="230">02 / COMPOSE + RESOLVE</text>
+    <text class="panel-note" x="745" y="254">Hydra turns selectors and interpolations into one runtime view</text>
+
+    <path class="flow-soft" d="M 650 383 H 692 V 368 H 745" marker-end="url(#arrow-soft)"/>
+    <path class="flow-soft" d="M 650 595 H 700 V 414 H 745" marker-end="url(#arrow-soft)"/>
+    <path class="flow-soft" d="M 650 808 H 708 V 460 H 745" marker-end="url(#arrow-soft)"/>
+    <path class="flow-soft" d="M 650 1068 H 716 V 506 H 745" marker-end="url(#arrow-soft)"/>
+
+    <g>
+      <rect class="resolve" x="745" y="278" width="565" height="112" rx="18"/>
+      <rect x="767" y="300" width="190" height="25" rx="12" fill="#4e753d"/>
+      <text class="pill-text" x="779" y="317">HYDRA COMPOSITION</text>
+      <text class="body-bold" x="767" y="351">profile + experiment + model + data + run</text>
+      <text class="body-small" x="767" y="373">defaults merge first; CLI overrides win at resolve time</text>
+    </g>
+
+    <path class="flow" d="M 1027 390 V 416" marker-end="url(#arrow-dark)"/>
+
+    <g>
+      <rect class="resolve" x="745" y="416" width="565" height="270" rx="18"/>
+      <rect x="767" y="438" width="192" height="25" rx="12" fill="#4e753d"/>
+      <text class="pill-text" x="779" y="455">RESOLVED DICTCONFIG</text>
+      <text class="card-title" x="767" y="498">one selected experiment</text>
+      <line class="rule" x1="767" y1="516" x2="1288" y2="516"/>
+      <text class="mono-small" x="767" y="544">runtime / device</text>
+      <text class="body-small" x="1010" y="544">local|cloud  /  auto|cuda</text>
+      <text class="mono-small" x="767" y="574">experiment.name</text>
+      <text class="body-small" x="1010" y="574">selected selector</text>
+      <text class="mono-small" x="767" y="604">model + data</text>
+      <text class="body-small" x="1010" y="604">group defaults resolved</text>
+      <text class="mono-small" x="767" y="634">run + training</text>
+      <text class="body-small" x="1010" y="634">debug/full values + phases</text>
+      <text class="mono-small" x="767" y="664">paths.*</text>
+      <text class="body-small" x="1010" y="664">roots, manifest, output, checkpoints</text>
+    </g>
+
+    <path class="flow" d="M 1027 686 V 712" marker-end="url(#arrow-dark)"/>
+
+    <g>
+      <rect class="runtime" x="745" y="712" width="565" height="248" rx="18"/>
+      <rect x="767" y="734" width="178" height="25" rx="12" fill="#286d68"/>
+      <text class="pill-text" x="779" y="751">RUNTIME SETTINGS</text>
+      <text class="card-title" x="767" y="794">paths resolve into run identity</text>
+      <text class="mono-small" x="767" y="823">data_root</text>
+      <text class="body-small" x="1010" y="823">data/local/brats or data/cloud/brats</text>
+      <text class="mono-small" x="767" y="850">manifest</text>
+      <text class="body-small" x="1010" y="850">data/manifests/brats_seed42.json</text>
+      <text class="mono-small" x="767" y="873">experiment_output</text>
+      <text class="body-small" x="1010" y="873">outputs/{runtime}/{experiment.name}/</text>
+      <text class="body-small" x="1010" y="890">{run.name}/{date}/{time}</text>
+      <text class="mono-small" x="767" y="917">checkpoint_dir</text>
+      <text class="body-small" x="1010" y="917">experiment_output/checkpoints</text>
+      <rect x="767" y="928" width="521" height="22" rx="11" fill="#286d68"/>
+      <text class="tag-text" x="783" y="944">config.yaml saved before dispatch</text>
+    </g>
+
+    <path class="flow-dashed" d="M 1027 960 V 994" marker-end="url(#arrow-plum)"/>
+
+    <g>
+      <rect class="override" x="745" y="994" width="565" height="150" rx="18"/>
+      <rect x="767" y="1016" width="174" height="25" rx="12" fill="#96526d"/>
+      <text class="pill-text" x="779" y="1033">INSPECTION SURFACE</text>
+      <text class="card-title" x="767" y="1073">resolved config can be inspected</text>
+      <text class="mono-small" x="767" y="1101">--help  ·  --cfg job  ·  no runner required</text>
+      <text class="body-small" x="767" y="1124">composition output is data for the next CLI boundary</text>
+    </g>
+  </g>
+
+  <g id="dispatch-panel">
+    <rect class="panel-dispatch" x="1375" y="190" width="785" height="1040" rx="28"/>
+    <rect x="1375" y="190" width="9" height="1040" rx="4" fill="#a66a22"/>
+    <text class="panel-label" x="1405" y="230">03 / CLI DISPATCH</text>
+    <text class="panel-note" x="1405" y="254">after resolution: persist, select, then invoke one pipeline</text>
+
+    <path class="flow" d="M 1310 836 H 1350 V 472 H 1425" marker-end="url(#arrow-dark)"/>
+    <text class="body-small" x="1320" y="814">resolved cfg</text>
+
+    <g>
+      <rect class="cli" x="1425" y="278" width="685" height="100" rx="18"/>
+      <rect x="1447" y="300" width="146" height="25" rx="12" fill="#655a91"/>
+      <text class="pill-text" x="1459" y="317">ENTRY COMMAND</text>
+      <text class="mono" x="1447" y="350">python -m token_mixer</text>
+      <text class="body-small" x="1447" y="370">Hydra parses config name, selectors, and overrides</text>
+    </g>
+
+    <path class="flow" d="M 1767 378 V 408" marker-end="url(#arrow-dark)"/>
+
+    <g>
+      <rect class="cli" x="1425" y="408" width="685" height="132" rx="18"/>
+      <rect x="1447" y="430" width="198" height="25" rx="12" fill="#655a91"/>
+      <text class="pill-text" x="1459" y="447">HYDRA ENTRYPOINT</text>
+      <text class="card-title" x="1447" y="490">main(cfg)</text>
+      <text class="body-small" x="1447" y="514">config path points at active configuration directory</text>
+      <text class="mono-small" x="1447" y="531">config_name = local  ·  version_base = none</text>
+    </g>
+
+    <path class="flow" d="M 1767 540 V 570" marker-end="url(#arrow-dark)"/>
+
+    <g>
+      <rect class="cli" x="1425" y="570" width="685" height="170" rx="18"/>
+      <rect x="1447" y="592" width="122" height="25" rx="12" fill="#655a91"/>
+      <text class="pill-text" x="1459" y="609">RUN HANDOFF</text>
+      <text class="card-title" x="1447" y="652">_run(cfg)</text>
+      <circle class="dot" cx="1454" cy="680" r="3"/>
+      <text class="body" x="1467" y="685">save composed config to output directory</text>
+      <circle class="dot" cx="1454" cy="712" r="3"/>
+      <text class="body" x="1467" y="717">call _dispatch(cfg)</text>
+      <rect x="1775" y="595" width="310" height="108" rx="12" fill="#fffdf8" stroke="#aaa3c8"/>
+      <text class="body-bold" x="1791" y="621">NOT TRAINING YET</text>
+      <text class="body-small" x="1791" y="645">this boundary persists intent</text>
+      <text class="body-small" x="1791" y="666">before runner code executes</text>
+      <text class="mono-small" x="1791" y="689">config.yaml</text>
+    </g>
+
+    <path class="flow" d="M 1767 740 V 770" marker-end="url(#arrow-dark)"/>
+
+    <g>
+      <rect class="runner" x="1425" y="770" width="685" height="126" rx="18"/>
+      <rect x="1447" y="792" width="166" height="25" rx="12" fill="#29383d"/>
+      <text class="pill-text" x="1459" y="809">SELECT ONE RUNNER</text>
+      <text class="card-title" x="1447" y="852">_dispatch(cfg)</text>
+      <text class="body-small" x="1447" y="876">experiment.name is the active dispatch key</text>
+    </g>
+
+    <path class="flow" d="M 1767 896 V 926" marker-end="url(#arrow-dark)"/>
+
+    <g>
+      <rect class="runner" x="1425" y="926" width="685" height="210" rx="18"/>
+      <text class="card-title" x="1447" y="963">selector → pipeline runner</text>
+      <line class="rule" x1="1447" y1="978" x2="2088" y2="978"/>
+      <text class="mono-small" x="1447" y="1007">cnn_denoising_pretrain</text>
+      <text class="body-small" x="1840" y="1007">→ run_cnn_denoising_pretrain</text>
+      <text class="mono-small" x="1447" y="1032">metaunetr_mamba · mod_a · mod_b</text>
+      <text class="body-small" x="1840" y="1032">→ run_metaunetr</text>
+      <text class="mono-small" x="1447" y="1057">resunet3d</text>
+      <text class="body-small" x="1840" y="1057">→ run_resunet3d</text>
+      <text class="mono-small" x="1447" y="1082">swinunetr</text>
+      <text class="body-small" x="1840" y="1082">→ run_swinunetr</text>
+      <text class="mono-small" x="1447" y="1107">transunet</text>
+      <text class="body-small" x="1840" y="1107">→ run_transunet</text>
+    </g>
+
+    <g>
+      <rect class="boundary" x="1425" y="1154" width="685" height="54" rx="16"/>
+      <text class="body-bold" x="1447" y="1177">COMPOSITION ≠ TRAINING</text>
+      <text class="body-small" x="1695" y="1177">runner owns fit, evaluation, and artifacts after dispatch</text>
+      <text class="body-tiny" x="1447" y="1196">A composed DictConfig alone never implies a training run.</text>
+    </g>
+  </g>
+
+  <g id="boundary-note">
+    <line class="rule" x1="68" y1="1260" x2="2132" y2="1260"/>
+    <rect x="68" y="1282" width="2064" height="78" rx="18" fill="#172329"/>
+    <text class="pill-text" x="92" y="1310">SEPARATE PREPARATION BOUNDARY</text>
+    <text x="92" y="1337" fill="#fffdf8" font-family="'Trebuchet MS','Segoe UI',sans-serif" font-size="14">run_prepare consumes source_root + data_root and writes case_index.json; it is not an experiment selector and is not composed into training.</text>
+    <text x="92" y="1357" fill="#b9c7c6" font-family="'Trebuchet MS','Segoe UI',sans-serif" font-size="12">Profiles choose roots. Experiments choose model/data groups. Run groups choose scale. The CLI chooses one runner.</text>
+  </g>
+</svg>

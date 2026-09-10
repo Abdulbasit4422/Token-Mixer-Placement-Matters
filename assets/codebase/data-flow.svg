@@ -1,0 +1,314 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2320" height="1260" viewBox="0 0 2320 1260" role="img" aria-labelledby="data-flow-title data-flow-desc">
+  <title id="data-flow-title">BraTS data flow from approved source to run artifacts</title>
+  <desc id="data-flow-desc">A left-to-right BraTS path moves from approved three-dimensional NIfTI source layouts through preparation, canonical cases, discovery, a persisted split manifest, dataset and transform builders, and training, evaluation, and artifacts. A separate lower lane shows the independent two-dimensional CNN ImageFolder denoising pretraining path.</desc>
+  <style><![CDATA[
+    .canvas { fill: #f4f1eb; }
+    .lane { fill: #fffdf8; stroke: #c9d0cd; stroke-width: 2; }
+    .lane-cnn { fill: #f8fbfa; stroke: #a9c4bf; stroke-width: 2; stroke-dasharray: 10 8; }
+    .card { stroke: #1e2b30; stroke-width: 2; }
+    .source { fill: #e1efec; stroke: #286d68; }
+    .prep { fill: #f4ead8; stroke: #a66a22; }
+    .canonical { fill: #ebe8f3; stroke: #655a91; }
+    .discover { fill: #e6eef4; stroke: #3c6c8c; }
+    .manifest { fill: #f2e5ea; stroke: #96526d; }
+    .dataset { fill: #e8f0e2; stroke: #4e753d; }
+    .output { fill: #e8e9e6; stroke: #29383d; }
+    .cnn-source { fill: #e6f0ef; stroke: #286d68; }
+    .cnn-transform { fill: #f4ead8; stroke: #a66a22; }
+    .cnn-train { fill: #ebe8f3; stroke: #655a91; }
+    .cnn-export { fill: #e8e9e6; stroke: #29383d; }
+    .title { fill: #172329; font-family: Georgia, 'Times New Roman', serif; font-size: 42px; font-weight: 700; letter-spacing: -0.8px; }
+    .subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 18px; }
+    .kicker { fill: #286d68; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2.4px; }
+    .lane-label { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 1.8px; }
+    .lane-note { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .card-title { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 21px; font-weight: 700; }
+    .card-subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 15px; }
+    .body-small { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; }
+    .body-bold { fill: #1d2c31; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 700; }
+    .mono { fill: #1d2c31; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+    .mono-small { fill: #526064; font-family: 'Courier New', Courier, monospace; font-size: 12px; }
+    .pill-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1.1px; }
+    .tag-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.7px; }
+    .mini-label { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+    .rule { stroke: #b9c2bf; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #24343a; stroke-width: 3; stroke-linecap: round; }
+    .flow-cnn { fill: none; stroke: #286d68; stroke-width: 3; stroke-linecap: round; }
+    .flow-dashed { fill: none; stroke: #526064; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 8 8; }
+    .dot { fill: #24343a; }
+    .dot-cnn { fill: #286d68; }
+  ]]></style>
+  <defs>
+    <marker id="arrow-dark" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#24343a"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#286d68"/>
+    </marker>
+    <marker id="arrow-soft" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#526064"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" x="0" y="0" width="2320" height="1260"/>
+
+  <g id="header">
+    <text class="kicker" x="68" y="58">TOKEN MIXER / DATA CONTRACT</text>
+    <text class="title" x="68" y="108">From approved volumes to trusted run artifacts</text>
+    <text class="subtitle" x="68" y="142">Canonicalize once. Preserve modality order, region order, and split identity all the way through evaluation.</text>
+    <rect x="1844" y="42" width="388" height="90" rx="18" fill="#172329"/>
+    <text class="pill-text" x="1870" y="70">CONTRACT ANCHORS</text>
+    <text x="1870" y="96" fill="#fffdf8" font-family="Courier New, Courier, monospace" font-size="13">[t1n,t1c,t2w,t2f]  →  [ET,TC,WT]</text>
+    <text x="1870" y="118" fill="#b9c7c6" font-family="'Trebuchet MS','Segoe UI',sans-serif" font-size="12">3-D NIfTI  ·  raw labels kept until conversion</text>
+  </g>
+
+  <g id="brats-lane">
+    <rect class="lane" x="40" y="180" width="2240" height="472" rx="28"/>
+    <rect x="40" y="180" width="9" height="472" rx="4" fill="#286d68"/>
+    <text class="lane-label" x="70" y="218">BRATS SEGMENTATION PATH</text>
+    <text class="lane-note" x="330" y="218">approved source → canonical cases → manifest-backed loaders → train, score, and record</text>
+
+    <path class="flow" d="M 360 438 H 380" marker-end="url(#arrow-dark)"/>
+    <path class="flow" d="M 680 438 H 700" marker-end="url(#arrow-dark)"/>
+    <path class="flow" d="M 1000 438 H 1020" marker-end="url(#arrow-dark)"/>
+    <path class="flow" d="M 1320 438 H 1340" marker-end="url(#arrow-dark)"/>
+    <path class="flow" d="M 1640 438 H 1660" marker-end="url(#arrow-dark)"/>
+    <path class="flow" d="M 1960 438 H 1980" marker-end="url(#arrow-dark)"/>
+
+    <g>
+      <rect class="card source" x="70" y="264" width="290" height="346" rx="20"/>
+      <rect x="90" y="286" width="116" height="25" rx="12" fill="#286d68"/>
+      <text class="pill-text" x="102" y="303">01 / SOURCE</text>
+      <text class="card-title" x="90" y="348">BraTS source root</text>
+      <text class="card-subtitle" x="90" y="371">3-D NIfTI volumes</text>
+      <rect x="90" y="392" width="250" height="72" rx="12" fill="#f7fbfa" stroke="#8fbab4"/>
+      <text class="body-bold" x="106" y="416">nnU-Net layout</text>
+      <text class="mono-small" x="106" y="438">imagesTr/  +  labelsTr/</text>
+      <text class="body-small" x="106" y="456">channels 0000…0003</text>
+      <rect x="90" y="476" width="250" height="72" rx="12" fill="#f7fbfa" stroke="#8fbab4"/>
+      <text class="body-bold" x="106" y="500">nested subjects</text>
+      <text class="mono-small" x="106" y="522">cohort/&lt;case_id&gt;/</text>
+      <text class="body-small" x="106" y="540">role-matched files</text>
+      <rect x="90" y="564" width="250" height="28" rx="14" fill="#286d68"/>
+      <text class="tag-text" x="106" y="583">RAW LABEL VALUES PRESERVED</text>
+    </g>
+
+    <g>
+      <rect class="card prep" x="380" y="264" width="300" height="346" rx="20"/>
+      <rect x="400" y="286" width="116" height="25" rx="12" fill="#a66a22"/>
+      <text class="pill-text" x="412" y="303">02 / PREP</text>
+      <text class="card-title" x="400" y="348">prepare_brats</text>
+      <text class="card-subtitle" x="400" y="371">run_prepare owns the handoff</text>
+      <circle class="dot" cx="407" cy="404" r="3"/>
+      <text class="body" x="420" y="409">detect source layout</text>
+      <circle class="dot" cx="407" cy="436" r="3"/>
+      <text class="body" x="420" y="441">collect complete cases</text>
+      <circle class="dot" cx="407" cy="468" r="3"/>
+      <text class="body" x="420" y="473">validate each NIfTI load/save</text>
+      <circle class="dot" cx="407" cy="500" r="3"/>
+      <text class="body" x="420" y="505">stage, then atomic commit</text>
+      <circle class="dot" cx="407" cy="532" r="3"/>
+      <text class="body" x="420" y="537">run_prepare writes case index</text>
+      <rect x="400" y="564" width="260" height="28" rx="14" fill="#fff9ef" stroke="#c68e4d"/>
+      <text class="body-small" x="414" y="583" fill="#805018">case_index.json  ·  labels unchanged</text>
+    </g>
+
+    <g>
+      <rect class="card canonical" x="700" y="264" width="300" height="346" rx="20"/>
+      <rect x="720" y="286" width="146" height="25" rx="12" fill="#655a91"/>
+      <text class="pill-text" x="732" y="303">03 / CANONICAL</text>
+      <text class="card-title" x="720" y="348">canonical cases</text>
+      <text class="card-subtitle" x="720" y="371">one stable folder contract</text>
+      <rect x="720" y="392" width="260" height="142" rx="12" fill="#faf9fd" stroke="#aaa3c8"/>
+      <text class="mono" x="736" y="416">data_root/cases/</text>
+      <text class="mono-small" x="736" y="440">&lt;case_id&gt;/</text>
+      <text class="mono-small" x="752" y="462">t1n.nii.gz</text>
+      <text class="mono-small" x="752" y="481">t1c.nii.gz</text>
+      <text class="mono-small" x="752" y="500">t2w.nii.gz</text>
+      <text class="mono-small" x="752" y="519">t2f.nii.gz</text>
+      <text class="mono-small" x="752" y="538">segmentation.nii.gz</text>
+      <rect x="720" y="564" width="260" height="28" rx="14" fill="#655a91"/>
+      <text class="tag-text" x="734" y="583">MODALITY ORDER IS FIXED</text>
+    </g>
+
+    <g>
+      <rect class="card discover" x="1020" y="264" width="300" height="346" rx="20"/>
+      <rect x="1040" y="286" width="156" height="25" rx="12" fill="#3c6c8c"/>
+      <text class="pill-text" x="1052" y="303">04 / DISCOVERY</text>
+      <text class="card-title" x="1040" y="348">discover_cases</text>
+      <text class="card-subtitle" x="1040" y="371">complete records only</text>
+      <circle class="dot" cx="1047" cy="404" r="3"/>
+      <text class="body" x="1060" y="409">scan root/cases</text>
+      <circle class="dot" cx="1047" cy="436" r="3"/>
+      <text class="body" x="1060" y="441">require 5 non-empty files</text>
+      <circle class="dot" cx="1047" cy="468" r="3"/>
+      <text class="body" x="1060" y="473">ignore symlinked entries</text>
+      <circle class="dot" cx="1047" cy="500" r="3"/>
+      <text class="body" x="1060" y="505">sort case IDs</text>
+      <rect x="1040" y="532" width="260" height="36" rx="10" fill="#f5f9fc" stroke="#99b4c7"/>
+      <text class="body-bold" x="1054" y="555">CaseRecord</text>
+      <text class="body-small" x="1142" y="555">modalities + segmentation</text>
+      <rect x="1040" y="578" width="260" height="14" rx="7" fill="#3c6c8c"/>
+    </g>
+
+    <g>
+      <rect class="card manifest" x="1340" y="264" width="300" height="346" rx="20"/>
+      <rect x="1360" y="286" width="144" height="25" rx="12" fill="#96526d"/>
+      <text class="pill-text" x="1372" y="303">05 / MANIFEST</text>
+      <text class="card-title" x="1360" y="348">split manifest</text>
+      <text class="card-subtitle" x="1360" y="371">author once, load per run</text>
+      <circle class="dot" cx="1367" cy="404" r="3"/>
+      <text class="body" x="1380" y="409">create + persist case IDs</text>
+      <circle class="dot" cx="1367" cy="436" r="3"/>
+      <text class="body" x="1380" y="441">load and validate metadata</text>
+      <circle class="dot" cx="1367" cy="468" r="3"/>
+      <text class="body" x="1380" y="473">reject duplicate IDs</text>
+      <rect x="1360" y="494" width="260" height="54" rx="12" fill="#fff9fb" stroke="#c995a9"/>
+      <text class="mono-small" x="1374" y="516">seed 42  ·  val 0.15  ·  test 0.10</text>
+      <text class="body-bold" x="1374" y="538">train  /  val  /  test</text>
+      <rect x="1360" y="564" width="260" height="28" rx="14" fill="#96526d"/>
+      <text class="tag-text" x="1374" y="583">PERSISTED SPLIT CONTRACT</text>
+    </g>
+
+    <g>
+      <rect class="card dataset" x="1660" y="264" width="300" height="346" rx="20"/>
+      <rect x="1680" y="286" width="220" height="25" rx="12" fill="#4e753d"/>
+      <text class="pill-text" x="1692" y="303">06 / DATA + TRANSFORMS</text>
+      <text class="card-title" x="1680" y="348">loaders &amp; tensors</text>
+      <text class="card-subtitle" x="1680" y="371">train patches, val/test volumes or slices</text>
+      <circle class="dot" cx="1687" cy="404" r="3"/>
+      <text class="body" x="1700" y="409">BratsPatchDataset → training</text>
+      <circle class="dot" cx="1687" cy="436" r="3"/>
+      <text class="body" x="1700" y="441">BratsVolumeDataset → 3-D eval</text>
+      <circle class="dot" cx="1687" cy="468" r="3"/>
+      <text class="body" x="1700" y="473">BratsSliceDataset → 2-D slices</text>
+      <circle class="dot" cx="1687" cy="500" r="3"/>
+      <text class="body" x="1700" y="505">normalize → pad/crop → augment</text>
+      <rect x="1680" y="532" width="260" height="60" rx="12" fill="#f8fcf5" stroke="#abc39e"/>
+      <text class="mono-small" x="1694" y="553">image  [4,D,H,W]</text>
+      <text class="mono-small" x="1694" y="572">masks  [ET,TC,WT,D,H,W]</text>
+      <text class="body-small" x="1694" y="588">raw 3/4 ET label → region masks</text>
+    </g>
+
+    <g>
+      <rect class="card output" x="1980" y="264" width="270" height="346" rx="20"/>
+      <rect x="2000" y="286" width="166" height="25" rx="12" fill="#29383d"/>
+      <text class="pill-text" x="2012" y="303">07 / RUN OUTPUTS</text>
+      <text class="card-title" x="2000" y="348">train → evaluate</text>
+      <text class="card-subtitle" x="2000" y="371">shared engine + explicit scoring</text>
+      <circle class="dot" cx="2007" cy="404" r="3"/>
+      <text class="body" x="2020" y="409">fit on train split</text>
+      <circle class="dot" cx="2007" cy="436" r="3"/>
+      <text class="body" x="2020" y="441">restore best checkpoint</text>
+      <circle class="dot" cx="2007" cy="468" r="3"/>
+      <text class="body" x="2020" y="473">Dice + HD95 by region</text>
+      <text class="body-small" x="2020" y="493">explicit spacing for physical HD95</text>
+      <rect x="2000" y="520" width="230" height="72" rx="12" fill="#f7f8f6" stroke="#aeb7b4"/>
+      <text class="mono-small" x="2014" y="542">config.yaml</text>
+      <text class="mono-small" x="2014" y="559">metrics.json</text>
+      <text class="mono-small" x="2014" y="576">provenance.json  ·  best.pt</text>
+    </g>
+  </g>
+
+  <g id="cnn-lane">
+    <rect class="lane-cnn" x="40" y="694" width="2240" height="480" rx="28"/>
+    <rect x="40" y="694" width="9" height="480" rx="4" fill="#a66a22"/>
+    <text class="lane-label" x="70" y="732">SEPARATE CNN / IMAGEFOLDER LANE</text>
+    <text class="lane-note" x="420" y="732">2-D denoising pretraining; does not consume canonical BraTS cases or the split manifest</text>
+
+    <path class="flow-cnn" d="M 510 948 H 540" marker-end="url(#arrow-teal)"/>
+    <path class="flow-cnn" d="M 990 948 H 1020" marker-end="url(#arrow-teal)"/>
+    <path class="flow-cnn" d="M 1470 948 H 1500" marker-end="url(#arrow-teal)"/>
+    <path class="flow-cnn" d="M 1880 948 H 1910" marker-end="url(#arrow-teal)"/>
+
+    <g>
+      <rect class="card cnn-source" x="70" y="778" width="440" height="316" rx="20"/>
+      <rect x="90" y="800" width="176" height="25" rx="12" fill="#286d68"/>
+      <text class="pill-text" x="102" y="817">A / IMAGEFOLDER INPUT</text>
+      <text class="card-title" x="90" y="861">ImageFolder(root)</text>
+      <text class="card-subtitle" x="90" y="884">2-D image classes under configured image root</text>
+      <rect x="90" y="906" width="400" height="76" rx="12" fill="#f7fbfa" stroke="#8fbab4"/>
+      <text class="mono" x="106" y="931">data.image_root  →  ImageFolder</text>
+      <text class="body-small" x="106" y="954">runtime-dependent local or cloud root</text>
+      <text class="body-small" x="106" y="973">configured image size: 96 × 96</text>
+      <rect x="90" y="1002" width="400" height="70" rx="12" fill="#fffdf8" stroke="#b8c3bf"/>
+      <text class="body-bold" x="106" y="1027">input channels</text>
+      <text class="mono-small" x="106" y="1049">3 in active pretraining config</text>
+      <text class="body-small" x="330" y="1027">root must exist</text>
+      <text class="body-small" x="330" y="1049">at least 2 images</text>
+    </g>
+
+    <g>
+      <rect class="card cnn-transform" x="540" y="778" width="450" height="316" rx="20"/>
+      <rect x="560" y="800" width="194" height="25" rx="12" fill="#a66a22"/>
+      <text class="pill-text" x="572" y="817">B / DATA BUILDERS</text>
+      <text class="card-title" x="560" y="861">build_dataloaders</text>
+      <text class="card-subtitle" x="560" y="884">train/validation transforms + deterministic split</text>
+      <circle class="dot" cx="567" cy="917" r="3"/>
+      <text class="body" x="580" y="922">resize/crop, flips, rotation, tensorize</text>
+      <circle class="dot" cx="567" cy="949" r="3"/>
+      <text class="body" x="580" y="954">torch generator selects train + val</text>
+      <rect x="560" y="978" width="410" height="94" rx="12" fill="#fff9ef" stroke="#d2ad79"/>
+      <text class="body-bold" x="576" y="1004">DenoisingDataset</text>
+      <text class="body-small" x="576" y="1027">adds Gaussian noise (noise_std = 0.15)</text>
+      <text class="mono-small" x="576" y="1050">(noisy_image, clean_image)</text>
+    </g>
+
+    <g>
+      <rect class="card cnn-train" x="1020" y="778" width="450" height="316" rx="20"/>
+      <rect x="1040" y="800" width="206" height="25" rx="12" fill="#655a91"/>
+      <text class="pill-text" x="1052" y="817">C / PRETRAIN + SCORE</text>
+      <text class="card-title" x="1040" y="861">denoising autoencoder</text>
+      <text class="card-subtitle" x="1040" y="884">run_cnn_denoising_pretrain → shared fit</text>
+      <circle class="dot" cx="1047" cy="917" r="3"/>
+      <text class="body" x="1060" y="922">2-D CNN encoder/decoder</text>
+      <circle class="dot" cx="1047" cy="949" r="3"/>
+      <text class="body" x="1060" y="954">noisy → clean reconstruction</text>
+      <circle class="dot" cx="1047" cy="981" r="3"/>
+      <text class="body" x="1060" y="986">MSE loss; MSE + PSNR validation</text>
+      <rect x="1040" y="1014" width="410" height="58" rx="12" fill="#faf9fd" stroke="#aaa3c8"/>
+      <text class="mono-small" x="1056" y="1039">best checkpoint restored before export</text>
+      <text class="body-small" x="1056" y="1059">separate from BraTS segmentation training</text>
+    </g>
+
+    <g>
+      <rect class="card cnn-export" x="1500" y="778" width="380" height="316" rx="20"/>
+      <rect x="1520" y="800" width="178" height="25" rx="12" fill="#29383d"/>
+      <text class="pill-text" x="1532" y="817">D / ENCODER EXPORT</text>
+      <text class="card-title" x="1520" y="861">transfer-ready weights</text>
+      <text class="card-subtitle" x="1520" y="884">CPU-normalized encoder payload</text>
+      <rect x="1520" y="910" width="340" height="64" rx="12" fill="#f7f8f6" stroke="#aeb7b4"/>
+      <text class="mono" x="1536" y="937">encoder_best.pth</text>
+      <text class="body-small" x="1536" y="959">encoder state + source config + epoch</text>
+      <circle class="dot" cx="1527" cy="1003" r="3"/>
+      <text class="body" x="1540" y="1008">optional reconstruction grid</text>
+      <circle class="dot" cx="1527" cy="1035" r="3"/>
+      <text class="body" x="1540" y="1040">returned FitResult</text>
+    </g>
+
+    <g>
+      <rect class="card output" x="1910" y="778" width="310" height="316" rx="20"/>
+      <rect x="1930" y="800" width="154" height="25" rx="12" fill="#29383d"/>
+      <text class="pill-text" x="1942" y="817">E / HANDOFF</text>
+      <text class="card-title" x="1930" y="861">run record</text>
+      <text class="card-subtitle" x="1930" y="884">same completion boundary</text>
+      <circle class="dot" cx="1937" cy="917" r="3"/>
+      <text class="body" x="1950" y="922">config.yaml</text>
+      <circle class="dot" cx="1937" cy="949" r="3"/>
+      <text class="body" x="1950" y="954">metrics.json</text>
+      <circle class="dot" cx="1937" cy="981" r="3"/>
+      <text class="body" x="1950" y="986">provenance.json</text>
+      <rect x="1930" y="1020" width="270" height="52" rx="12" fill="#f7f8f6" stroke="#aeb7b4"/>
+      <text class="body-small" x="1944" y="1043">selector:</text>
+      <text class="mono-small" x="2002" y="1043">cnn_denoising_pretrain</text>
+      <text class="body-small" x="1944" y="1061">not a BraTS data branch</text>
+    </g>
+  </g>
+
+  <g id="footer">
+    <line class="rule" x1="68" y1="1210" x2="2250" y2="1210"/>
+    <text class="body-small" x="68" y="1238">Read arrows as ownership boundaries: source preparation is separate from label conversion; persisted split identity is checked before loaders are built.</text>
+    <text class="body-small" x="1738" y="1238">hand-authored · grayscale-safe · no external assets</text>
+  </g>
+</svg>
