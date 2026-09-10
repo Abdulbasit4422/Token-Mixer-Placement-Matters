@@ -1,5 +1,4 @@
 import builtins
-import os
 import sys
 from types import SimpleNamespace
 

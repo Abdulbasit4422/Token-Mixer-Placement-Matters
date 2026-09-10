@@ -580,13 +580,6 @@ def _build_loss(cfg: DictConfig | Mapping[str, Any]):
     raise ValueError(f"unsupported denoising loss '{configured}'; choose mse")
 
 
-def _torch_load(path: Path) -> Any:
-    try:
-        return torch.load(path, map_location="cpu", weights_only=False)
-    except TypeError:
-        return torch.load(path, map_location="cpu")
-
-
 def _restore_best_checkpoint(
     model: nn.Module,
     checkpoints: CheckpointManager | None,
