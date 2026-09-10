@@ -8,6 +8,8 @@ SwinUNETR, TransUNet, and 2-D CNN denoising pretraining paths.
 Run commands from repository root. Runtime data, checkpoints, W&B files, and
 generated outputs stay outside reviewed source tree.
 
+For maintainer/researcher architecture and implementation guides, see [codebase/README.md](codebase/README.md).
+
 ## Quickstart
 
 ### Prerequisites
