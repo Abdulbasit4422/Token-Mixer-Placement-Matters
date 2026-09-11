@@ -26,6 +26,15 @@ the claims in this guide:
 | Shape and placement contracts | [`tests/models/test_metaunetr.py::test_paper_variants_share_raw_logit_contract`](../tests/models/test_metaunetr.py#L42-L49), [`tests/models/test_metaunetr.py::test_encoder_uses_raw_stage_inputs_and_normalized_hidden_states`](../tests/models/test_metaunetr.py#L492-L576) |
 | Pipeline/config contracts | [`tests/pipelines/test_train_metaunetr.py::test_run_metaunetr_selects_each_allowed_variant_and_rejects_other_values`](../tests/pipelines/test_train_metaunetr.py#L91-L108), [`tests/pipelines/test_train_metaunetr.py::test_run_metaunetr_seeds_before_constructing_model_or_loaders`](../tests/pipelines/test_train_metaunetr.py#L129-L147), [`tests/pipelines/test_train_metaunetr.py::test_metaunetr_consumes_nested_experiment_training_settings`](../tests/pipelines/test_train_metaunetr.py#L233-L271) |
 
+## Diagrams
+
+- [Shared MetaUNETR shape and placement overview](../assets/codebase/model-placement-overview.svg)
+- [MetaUNETR variant comparison](../assets/codebase/metaunetr-variants.svg)
+
+These hand-authored diagrams summarize the source-backed tensor path and exact
+variant slots. The source map above remains the authority for implementation
+facts.
+
 ## Contract At A Glance
 
 `MetaUNETR` is a native 3-D segmenter. Its canonical interface is:

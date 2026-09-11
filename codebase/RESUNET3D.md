@@ -11,6 +11,12 @@ reproducibility contracts remain owned by [DATA.md](DATA.md),
 [TRAINING.md](TRAINING.md), [EVALUATE.md](EVALUATE.md), and
 [REPRODUCIBILITY.md](REPRODUCIBILITY.md).
 
+## Architecture Diagram
+
+[ResUNet3D architecture map](../assets/codebase/resunet3d.svg) summarizes the
+verified default tensor trace, skip routes, residual block, phased fit, and
+optional transfer boundary described below.
+
 ## Quick Contract
 
 | Item | Active contract |

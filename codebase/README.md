@@ -20,11 +20,9 @@ new maintainer:
 9. [Model guides](#model-guides) explain architecture-specific tensor paths and experiment choices.
 10. [Maintenance](MAINTENANCE.md) is the change checklist for source, tests, guides, and SVGs.
 
-`DATA.md`, `CONFIG.md`, `TRAINING.md`, `EVALUATE.md`, `REPRODUCIBILITY.md`,
-`TESTING.md`, `NOTEBOOKS.md`, and `TRANSUNET.md` are active guides. The other
-model guides remain planned follow-on guides; their repository-relative entries
-below are intentionally retained for those later tasks. Links stay here as the
-canonical navigation surface; each active guide owns its implementation details.
+All fourteen guide files listed below are active reviewed guides. Links stay
+here as the canonical navigation surface; each guide owns its implementation
+details.
 
 ## System Map
 
@@ -78,17 +76,16 @@ implementation details into another guide.
 
 ## Model Guides
 
-This index contains the active TransUNet guide and planned follow-on model
-guides. Planned links below are retained for navigation planning only and are
-not active implementation references until their guides are reviewed.
+This index contains five active model guides. Each guide documents an active
+package path and links to its owned architecture asset where one exists.
 
 | Guide | Scope |
 | --- | --- |
-| [METAUNETR.md](METAUNETR.md) | Planned; inactive until its guide is reviewed. `metaunetr_mamba`, `mod_a`, and `mod_b` placement variants |
-| [RESUNET3D.md](RESUNET3D.md) | Planned; inactive until its guide is reviewed. Native 3-D residual U-Net baseline and ImageNet transfer boundary |
-| [SWINUNETR.md](SWINUNETR.md) | Planned; inactive until its guide is reviewed. MONAI SwinUNETR adapter and native 3-D baseline path |
+| [METAUNETR.md](METAUNETR.md) | Active; `metaunetr_mamba`, `mod_a`, and `mod_b` placement variants |
+| [RESUNET3D.md](RESUNET3D.md) | Active; native 3-D residual U-Net baseline and ImageNet transfer boundary |
+| [SWINUNETR.md](SWINUNETR.md) | Active; MONAI SwinUNETR adapter and native 3-D baseline path |
 | [TRANSUNET.md](TRANSUNET.md) | Active; external 2-D slice adapter, checkout boundary, and canonical output conversion |
-| [CNN_PRETRAINING.md](CNN_PRETRAINING.md) | Planned; inactive until its guide is reviewed. Separate ImageFolder denoising pretraining and encoder export |
+| [CNN_PRETRAINING.md](CNN_PRETRAINING.md) | Active; separate ImageFolder denoising pretraining and encoder export |
 
 Model guides document architecture-specific behavior. They do not redefine the
 shared data, training, evaluation, or reproducibility contracts.
@@ -103,18 +100,16 @@ and must pass the fact checklist in [MAINTENANCE.md](MAINTENANCE.md).
 | --- | --- |
 | [data-flow.svg](../assets/codebase/data-flow.svg) | Active; owned by [DATA.md](DATA.md) |
 | [config-flow.svg](../assets/codebase/config-flow.svg) | Active; owned by [CONFIG.md](CONFIG.md) |
-| [model-placement-overview.svg](../assets/codebase/model-placement-overview.svg) | Planned asset for later [METAUNETR.md](METAUNETR.md) placement-overview task; intentionally unresolved and not active |
-| [metaunetr-variants.svg](../assets/codebase/metaunetr-variants.svg) | Planned asset for later [METAUNETR.md](METAUNETR.md) variant-guide task; intentionally unresolved and not active |
-| [resunet3d.svg](../assets/codebase/resunet3d.svg) | Planned asset for later [RESUNET3D.md](RESUNET3D.md) guide task; intentionally unresolved and not active |
-| [swinunetr.svg](../assets/codebase/swinunetr.svg) | Planned asset for later [SWINUNETR.md](SWINUNETR.md) guide task; intentionally unresolved and not active |
+| [model-placement-overview.svg](../assets/codebase/model-placement-overview.svg) | Active; owned by [METAUNETR.md](METAUNETR.md) |
+| [metaunetr-variants.svg](../assets/codebase/metaunetr-variants.svg) | Active; owned by [METAUNETR.md](METAUNETR.md) |
+| [resunet3d.svg](../assets/codebase/resunet3d.svg) | Active; owned by [RESUNET3D.md](RESUNET3D.md) |
+| [swinunetr.svg](../assets/codebase/swinunetr.svg) | Active; owned by [SWINUNETR.md](SWINUNETR.md) |
 | [transunet.svg](../assets/codebase/transunet.svg) | Active; owned by [TRANSUNET.md](TRANSUNET.md) |
-| [cnn-pretraining.svg](../assets/codebase/cnn-pretraining.svg) | Planned asset for later [CNN_PRETRAINING.md](CNN_PRETRAINING.md) guide task; intentionally unresolved and not active |
+| [cnn-pretraining.svg](../assets/codebase/cnn-pretraining.svg) | Active; owned by [CNN_PRETRAINING.md](CNN_PRETRAINING.md) |
 
-The data-flow, config-flow, and TransUNet assets are owned by their active
-guides; their SVG files are maintained separately from this index. The five
-remaining model SVG links above are future deliverables mapped to their later
-model guides, not active assets. No generated diagram or documentation output
-is a source of truth.
+All eight SVG assets are active hand-authored diagrams owned by the guides shown
+above; their SVG files are maintained separately from this index. No generated
+diagram or documentation output is a source of truth.
 
 ## Source Of Truth
 
