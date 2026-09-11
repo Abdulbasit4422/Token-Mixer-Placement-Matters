@@ -1,0 +1,413 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1480" viewBox="0 0 2400 1480" role="img" aria-labelledby="resunet3d-title resunet3d-desc">
+  <title id="resunet3d-title">ResUNet3D five-stage residual U-Net architecture</title>
+  <desc id="resunet3d-desc">A hand-authored architecture map for the native 3-D ResUNet3D baseline. The verified default trace starts with a four-channel 96-cubed MRI patch, passes through five encoder stages with widths 32, 64, 128, 256, and 512, then returns through four decoder stages and a one-by-one-by-one head to three raw ET, TC, and WT logits at the original spatial size. Four explicit skip routes connect encoder stages one through four to decoder stages dec0 through dec3. Insets show the residual block operations, decoder shape alignment, phased training contract, and optional timm ResNet-18 encoder transfer. The separate CNN denoising encoder_best.pth artifact is marked as outside this ResUNet3D transfer route.</desc>
+  <style><![CDATA[
+    .canvas { fill: #f4f1eb; }
+    .panel { fill: #fffdf8; stroke: #c9d0cd; stroke-width: 2; }
+    .panel-arch { fill: #fffdf8; stroke: #b9c5c1; stroke-width: 2; }
+    .panel-model { fill: #f8fbfa; stroke: #9bbdb8; stroke-width: 2; }
+    .panel-training { fill: #fff9ef; stroke: #d2ad79; stroke-width: 2; }
+    .panel-transfer { fill: #faf9fd; stroke: #aaa3c8; stroke-width: 2; }
+    .stage-enc { fill: #e1efec; stroke: #286d68; stroke-width: 2; }
+    .stage-bottle { fill: #ebe8f3; stroke: #655a91; stroke-width: 2; }
+    .stage-dec { fill: #e6eef4; stroke: #3c6c8c; stroke-width: 2; }
+    .card-input { fill: #e8f0e2; stroke: #4e753d; stroke-width: 2; }
+    .card-output { fill: #e8e9e6; stroke: #29383d; stroke-width: 2; }
+    .card-transfer { fill: #f2e5ea; stroke: #96526d; stroke-width: 2; }
+    .card-soft { fill: #fffdf8; stroke: #c9d0cd; stroke-width: 1.5; }
+    .card-soft-teal { fill: #f7fbfa; stroke: #8fbab4; stroke-width: 1.5; }
+    .card-soft-orange { fill: #fff9ef; stroke: #d2ad79; stroke-width: 1.5; }
+    .card-soft-plum { fill: #faf9fd; stroke: #aaa3c8; stroke-width: 1.5; }
+    .title { fill: #172329; font-family: Georgia, 'Times New Roman', serif; font-size: 44px; font-weight: 700; letter-spacing: -0.9px; }
+    .subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 18px; }
+    .kicker { fill: #286d68; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2.4px; }
+    .section-label { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 1.8px; }
+    .section-note { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .card-title { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 20px; font-weight: 700; }
+    .card-subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body-small { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .body-bold { fill: #1d2c31; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; }
+    .body-tiny { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; }
+    .mono { fill: #1d2c31; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+    .mono-large { fill: #172329; font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 700; }
+    .mono-small { fill: #526064; font-family: 'Courier New', Courier, monospace; font-size: 11px; }
+    .mono-white { fill: #fffdf8; font-family: 'Courier New', Courier, monospace; font-size: 15px; }
+    .pill-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+    .tag-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.7px; }
+    .mini-label { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .stage-shape { fill: #172329; font-family: 'Courier New', Courier, monospace; font-size: 17px; font-weight: 700; }
+    .stage-op { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; font-weight: 700; }
+    .stage-note { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .skip-label { fill: #655a91; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.7px; }
+    .rule { stroke: #b9c2bf; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #24343a; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .flow-skip { fill: none; stroke: #655a91; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 8 7; }
+    .flow-transfer { fill: none; stroke: #96526d; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 6; }
+    .flow-soft { fill: none; stroke: #526064; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .dot { fill: #24343a; }
+    .dot-skip { fill: #655a91; }
+    .op-box { fill: #fffdf8; stroke: #9ea9a6; stroke-width: 1.5; }
+    .op-box-accent { fill: #f2e5ea; stroke: #c995a9; stroke-width: 1.5; }
+    .op-text { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; text-anchor: middle; }
+  ]]></style>
+  <defs>
+    <marker id="arrow-dark" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#24343a"/>
+    </marker>
+    <marker id="arrow-skip" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#655a91"/>
+    </marker>
+    <marker id="arrow-transfer" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#96526d"/>
+    </marker>
+    <marker id="arrow-soft" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#526064"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" x="0" y="0" width="2400" height="1480"/>
+
+  <g id="header">
+    <text class="kicker" x="70" y="56">TOKEN MIXER / MODEL CONTRACT</text>
+    <text class="title" x="70" y="108">ResUNet3D / residual U-Net you can audit</text>
+    <text class="subtitle" x="70" y="143">Native 3-D baseline · five encoder stages · four reductions · skip alignment stays visible</text>
+    <rect x="1830" y="34" width="495" height="124" rx="18" fill="#172329"/>
+    <text class="pill-text" x="1856" y="62">DEFAULT TRACE / ACTIVE 96³ PATCH + ROI</text>
+    <text class="mono-white" x="1856" y="94">[B,4,96³]  →  [B,3,96³]</text>
+    <text x="1856" y="120" fill="#b9c7c6" font-family="'Trebuchet MS','Segoe UI',sans-serif" font-size="12">widths 32·64·128·256·512  ·  depths 2× each</text>
+    <text x="1856" y="140" fill="#b9c7c6" font-family="'Trebuchet MS','Segoe UI',sans-serif" font-size="12">shape trace is illustrative; forward accepts other positive sizes</text>
+  </g>
+
+  <g id="architecture-panel">
+    <rect class="panel-arch" x="40" y="205" width="2320" height="800" rx="28"/>
+    <rect x="40" y="205" width="9" height="800" rx="4" fill="#286d68"/>
+    <text class="section-label" x="70" y="246">01 / ENCODER → BOTTLENECK → DECODER</text>
+    <text class="section-note" x="520" y="246">solid arrows = tensor flow · dashed plum routes = encoder skips · card shapes are channel/spatial checkpoints</text>
+
+    <g id="main-flow-wires">
+      <path class="flow" d="M 270 432 H 310" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 595 432 H 625" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 910 432 H 940" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 1225 432 H 1255" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 1540 432 H 1570" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 1712.5 550 V 670" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 1570 807 H 1540" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 1255 807 H 1225" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 940 807 H 910" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 625 807 H 595" marker-end="url(#arrow-dark)"/>
+      <path class="flow" d="M 310 807 H 270" marker-end="url(#arrow-dark)"/>
+      <text class="mini-label" x="1730" y="610">BOTTLENECK → DEC3</text>
+    </g>
+
+    <g id="skip-wires">
+      <path class="flow-skip" d="M 452.5 550 V 620 H 767.5 V 670" marker-end="url(#arrow-skip)"/>
+      <path class="flow-skip" d="M 767.5 550 V 600 H 1082.5 V 670" marker-end="url(#arrow-skip)"/>
+      <path class="flow-skip" d="M 1082.5 550 V 580 H 1397.5 V 670" marker-end="url(#arrow-skip)"/>
+      <path class="flow-skip" d="M 1397.5 550 V 560 H 1712.5 V 670" marker-end="url(#arrow-skip)"/>
+      <text class="skip-label" x="480" y="614">SKIP S1 → DEC0</text>
+      <text class="skip-label" x="795" y="594">SKIP S2 → DEC1</text>
+      <text class="skip-label" x="1110" y="574">SKIP S3 → DEC2</text>
+      <text class="skip-label" x="1425" y="554">SKIP S4 → DEC3</text>
+    </g>
+
+    <g id="input-card">
+      <rect class="card-input" x="70" y="350" width="200" height="165" rx="18"/>
+      <rect x="88" y="370" width="82" height="23" rx="11" fill="#4e753d"/>
+      <text class="pill-text" x="100" y="386">INPUT</text>
+      <text class="card-title" x="88" y="421">MRI PATCH</text>
+      <text class="mono-large" x="88" y="454">[B,4,96³]</text>
+      <text class="body-small" x="88" y="477">t1n · t1c · t2w · t2f</text>
+      <text class="body-small" x="88" y="498">channel-first 3-D tensor</text>
+    </g>
+
+    <g id="encoder-stage-1">
+      <rect class="stage-enc" x="310" y="300" width="285" height="250" rx="18"/>
+      <rect x="330" y="320" width="96" height="23" rx="11" fill="#286d68"/>
+      <text class="pill-text" x="342" y="336">S1 / ENC</text>
+      <text class="card-title" x="330" y="376">enc0</text>
+      <text class="stage-shape" x="330" y="407">[B,32,96³]</text>
+      <line class="rule" x1="330" y1="424" x2="575" y2="424"/>
+      <text class="stage-op" x="330" y="450">2 × ResBlock3D</text>
+      <text class="stage-note" x="330" y="475">first block / stride 1</text>
+      <text class="stage-note" x="330" y="501">4 → 32 channels · save S1</text>
+      <rect x="330" y="518" width="160" height="20" rx="10" fill="#286d68"/>
+      <text class="tag-text" x="342" y="532">FULL RESOLUTION</text>
+    </g>
+
+    <g id="encoder-stage-2">
+      <rect class="stage-enc" x="625" y="300" width="285" height="250" rx="18"/>
+      <rect x="645" y="320" width="96" height="23" rx="11" fill="#286d68"/>
+      <text class="pill-text" x="657" y="336">S2 / ENC</text>
+      <text class="card-title" x="645" y="376">enc1</text>
+      <text class="stage-shape" x="645" y="407">[B,64,48³]</text>
+      <line class="rule" x1="645" y1="424" x2="890" y2="424"/>
+      <text class="stage-op" x="645" y="450">2 × ResBlock3D</text>
+      <text class="stage-note" x="645" y="475">first block / stride 2</text>
+      <text class="stage-note" x="645" y="501">32 → 64 channels · save S2</text>
+      <rect x="645" y="518" width="160" height="20" rx="10" fill="#286d68"/>
+      <text class="tag-text" x="657" y="532">½ SPATIAL SIZE</text>
+    </g>
+
+    <g id="encoder-stage-3">
+      <rect class="stage-enc" x="940" y="300" width="285" height="250" rx="18"/>
+      <rect x="960" y="320" width="96" height="23" rx="11" fill="#286d68"/>
+      <text class="pill-text" x="972" y="336">S3 / ENC</text>
+      <text class="card-title" x="960" y="376">enc2</text>
+      <text class="stage-shape" x="960" y="407">[B,128,24³]</text>
+      <line class="rule" x1="960" y1="424" x2="1205" y2="424"/>
+      <text class="stage-op" x="960" y="450">2 × ResBlock3D</text>
+      <text class="stage-note" x="960" y="475">first block / stride 2</text>
+      <text class="stage-note" x="960" y="501">64 → 128 channels · save S3</text>
+      <rect x="960" y="518" width="160" height="20" rx="10" fill="#286d68"/>
+      <text class="tag-text" x="972" y="532">¼ SPATIAL SIZE</text>
+    </g>
+
+    <g id="encoder-stage-4">
+      <rect class="stage-enc" x="1255" y="300" width="285" height="250" rx="18"/>
+      <rect x="1275" y="320" width="96" height="23" rx="11" fill="#286d68"/>
+      <text class="pill-text" x="1287" y="336">S4 / ENC</text>
+      <text class="card-title" x="1275" y="376">enc3</text>
+      <text class="stage-shape" x="1275" y="407">[B,256,12³]</text>
+      <line class="rule" x1="1275" y1="424" x2="1520" y2="424"/>
+      <text class="stage-op" x="1275" y="450">2 × ResBlock3D</text>
+      <text class="stage-note" x="1275" y="475">first block / stride 2</text>
+      <text class="stage-note" x="1275" y="501">128 → 256 channels · save S4</text>
+      <rect x="1275" y="518" width="160" height="20" rx="10" fill="#286d68"/>
+      <text class="tag-text" x="1287" y="532">⅛ SPATIAL SIZE</text>
+    </g>
+
+    <g id="encoder-stage-5">
+      <rect class="stage-bottle" x="1570" y="300" width="285" height="250" rx="18"/>
+      <rect x="1590" y="320" width="142" height="23" rx="11" fill="#655a91"/>
+      <text class="pill-text" x="1602" y="336">S5 / BOTTLENECK</text>
+      <text class="card-title" x="1590" y="376">enc4</text>
+      <text class="stage-shape" x="1590" y="407">[B,512,6³]</text>
+      <line class="rule" x1="1590" y1="424" x2="1835" y2="424"/>
+      <text class="stage-op" x="1590" y="450">2 × ResBlock3D</text>
+      <text class="stage-note" x="1590" y="475">first block / stride 2</text>
+      <text class="stage-note" x="1590" y="501">256 → 512 · bottleneck output</text>
+      <rect x="1590" y="518" width="174" height="20" rx="10" fill="#655a91"/>
+      <text class="tag-text" x="1602" y="532">1⁄16 SPATIAL SIZE</text>
+    </g>
+
+    <g id="decoder-stage-3">
+      <rect class="stage-dec" x="1570" y="690" width="285" height="235" rx="18"/>
+      <rect x="1590" y="710" width="96" height="23" rx="11" fill="#3c6c8c"/>
+      <text class="pill-text" x="1602" y="726">D3 / DEC</text>
+      <text class="card-title" x="1590" y="766">dec3</text>
+      <text class="stage-shape" x="1590" y="797">[B,256,12³]</text>
+      <line class="rule" x1="1590" y1="814" x2="1835" y2="814"/>
+      <text class="stage-op" x="1590" y="840">TConv3d 2³ / s2: 512 → 256</text>
+      <text class="stage-note" x="1590" y="864">concat skip S4 (256) → ResBlock3D</text>
+      <text class="stage-note" x="1590" y="888">one decoder block · output 256</text>
+      <rect x="1590" y="898" width="174" height="20" rx="10" fill="#3c6c8c"/>
+      <text class="tag-text" x="1602" y="912">⅛ SPATIAL SIZE</text>
+    </g>
+
+    <g id="decoder-stage-2">
+      <rect class="stage-dec" x="1255" y="690" width="285" height="235" rx="18"/>
+      <rect x="1275" y="710" width="96" height="23" rx="11" fill="#3c6c8c"/>
+      <text class="pill-text" x="1287" y="726">D2 / DEC</text>
+      <text class="card-title" x="1275" y="766">dec2</text>
+      <text class="stage-shape" x="1275" y="797">[B,128,24³]</text>
+      <line class="rule" x1="1275" y1="814" x2="1520" y2="814"/>
+      <text class="stage-op" x="1275" y="840">TConv3d 2³ / s2: 256 → 128</text>
+      <text class="stage-note" x="1275" y="864">concat skip S3 (128) → ResBlock3D</text>
+      <text class="stage-note" x="1275" y="888">one decoder block · output 128</text>
+      <rect x="1275" y="898" width="174" height="20" rx="10" fill="#3c6c8c"/>
+      <text class="tag-text" x="1287" y="912">¼ SPATIAL SIZE</text>
+    </g>
+
+    <g id="decoder-stage-1">
+      <rect class="stage-dec" x="940" y="690" width="285" height="235" rx="18"/>
+      <rect x="960" y="710" width="96" height="23" rx="11" fill="#3c6c8c"/>
+      <text class="pill-text" x="972" y="726">D1 / DEC</text>
+      <text class="card-title" x="960" y="766">dec1</text>
+      <text class="stage-shape" x="960" y="797">[B,64,48³]</text>
+      <line class="rule" x1="960" y1="814" x2="1205" y2="814"/>
+      <text class="stage-op" x="960" y="840">TConv3d 2³ / s2: 128 → 64</text>
+      <text class="stage-note" x="960" y="864">concat skip S2 (64) → ResBlock3D</text>
+      <text class="stage-note" x="960" y="888">one decoder block · output 64</text>
+      <rect x="960" y="898" width="174" height="20" rx="10" fill="#3c6c8c"/>
+      <text class="tag-text" x="972" y="912">½ SPATIAL SIZE</text>
+    </g>
+
+    <g id="decoder-stage-0">
+      <rect class="stage-dec" x="625" y="690" width="285" height="235" rx="18"/>
+      <rect x="645" y="710" width="96" height="23" rx="11" fill="#3c6c8c"/>
+      <text class="pill-text" x="657" y="726">D0 / DEC</text>
+      <text class="card-title" x="645" y="766">dec0</text>
+      <text class="stage-shape" x="645" y="797">[B,32,96³]</text>
+      <line class="rule" x1="645" y1="814" x2="890" y2="814"/>
+      <text class="stage-op" x="645" y="840">TConv3d 2³ / s2: 64 → 32</text>
+      <text class="stage-note" x="645" y="864">concat skip S1 (32) → ResBlock3D</text>
+      <text class="stage-note" x="645" y="888">one decoder block · output 32</text>
+      <rect x="645" y="898" width="174" height="20" rx="10" fill="#3c6c8c"/>
+      <text class="tag-text" x="657" y="912">FULL RESOLUTION</text>
+    </g>
+
+    <g id="head-card">
+      <rect class="card-output" x="310" y="690" width="285" height="235" rx="18"/>
+      <rect x="330" y="710" width="104" height="23" rx="11" fill="#29383d"/>
+      <text class="pill-text" x="342" y="726">HEAD / OUTPUT</text>
+      <text class="card-title" x="330" y="766">1×1×1 Conv3d</text>
+      <text class="stage-shape" x="330" y="797">32 → 3 channels</text>
+      <line class="rule" x1="330" y1="814" x2="575" y2="814"/>
+      <text class="stage-op" x="330" y="840">raw logits · no activation</text>
+      <text class="stage-note" x="330" y="864">spatial size remains 96³</text>
+      <text class="stage-note" x="330" y="888">output order: ET · TC · WT</text>
+      <rect x="330" y="898" width="174" height="20" rx="10" fill="#29383d"/>
+      <text class="tag-text" x="342" y="912">OUTPUT CONTRACT</text>
+    </g>
+
+    <g id="output-card">
+      <rect class="card-output" x="70" y="700" width="200" height="215" rx="18"/>
+      <rect x="88" y="720" width="88" height="23" rx="11" fill="#29383d"/>
+      <text class="pill-text" x="100" y="736">OUTPUT</text>
+      <text class="card-title" x="88" y="773">REGION LOGITS</text>
+      <text class="mono-large" x="88" y="807">[B,3,96³]</text>
+      <text class="body-bold" x="88" y="838">ET · TC · WT</text>
+      <text class="body-small" x="88" y="862">raw, channel-first</text>
+      <text class="body-small" x="88" y="883">same spatial size as input</text>
+      <rect x="88" y="892" width="154" height="18" rx="9" fill="#29383d"/>
+      <text class="tag-text" x="100" y="905">SIGMOID IN EVALUATOR</text>
+    </g>
+
+    <g id="transfer-marker">
+      <rect class="card-transfer" x="1885" y="300" width="445" height="215" rx="18"/>
+      <rect x="1907" y="320" width="214" height="23" rx="11" fill="#96526d"/>
+      <text class="pill-text" x="1919" y="336">OPTIONAL / ENCODER ONLY</text>
+      <text class="card-title" x="1907" y="376">ImageNet preload</text>
+      <rect class="card-soft-plum" x="1907" y="391" width="188" height="38" rx="10"/>
+      <text class="mono-small" x="1919" y="414">timm:resnet18.a1_in1k</text>
+      <path class="flow-transfer" d="M 2105 410 H 2167" marker-end="url(#arrow-transfer)"/>
+      <rect class="card-soft" x="2177" y="391" width="131" height="38" rx="10"/>
+      <text class="body-bold" x="2190" y="414">model.encoder</text>
+      <text class="body-small" x="1907" y="456">explicit ResNet-18 map · inflate/adapt 2-D → 3-D</text>
+      <text class="body-small" x="1907" y="478">disabled by default · download false unless explicit</text>
+      <text class="body-tiny" x="1907" y="498">injected source_model keeps offline runs network-free</text>
+    </g>
+
+    <g id="residual-core">
+      <rect class="panel-transfer" x="1885" y="550" width="445" height="400" rx="18"/>
+      <rect x="1907" y="570" width="222" height="23" rx="11" fill="#655a91"/>
+      <text class="pill-text" x="1919" y="586">RESBLOCK3D / EVERY STAGE</text>
+      <text class="card-title" x="1907" y="618">residual block contract</text>
+
+      <rect class="op-box" x="1907" y="636" width="125" height="38" rx="9"/>
+      <text class="op-text" x="1969.5" y="660">Conv3d 3×3×3</text>
+      <rect class="op-box" x="2048" y="636" width="85" height="38" rx="9"/>
+      <text class="op-text" x="2090.5" y="660">Norm</text>
+      <rect class="op-box" x="2149" y="636" width="159" height="38" rx="9"/>
+      <text class="op-text" x="2228.5" y="660">LeakyReLU 0.01</text>
+      <path class="flow-soft" d="M 2032 655 H 2045" marker-end="url(#arrow-soft)"/>
+      <path class="flow-soft" d="M 2133 655 H 2146" marker-end="url(#arrow-soft)"/>
+
+      <path class="flow-soft" d="M 2228.5 674 V 686 H 1969.5 V 698" marker-end="url(#arrow-soft)"/>
+      <rect class="op-box" x="1907" y="700" width="125" height="38" rx="9"/>
+      <text class="op-text" x="1969.5" y="724">Conv3d 3×3×3</text>
+      <rect class="op-box" x="2048" y="700" width="85" height="38" rx="9"/>
+      <text class="op-text" x="2090.5" y="724">Norm</text>
+      <rect class="op-box-accent" x="2149" y="700" width="159" height="38" rx="9"/>
+      <text class="op-text" x="2228.5" y="724">+ skip(x)</text>
+      <path class="flow-soft" d="M 2032 719 H 2045" marker-end="url(#arrow-soft)"/>
+      <path class="flow-soft" d="M 2133 719 H 2146" marker-end="url(#arrow-soft)"/>
+      <path class="flow-soft" d="M 2228.5 740 V 756" marker-end="url(#arrow-soft)"/>
+      <rect class="op-box" x="1907" y="762" width="401" height="36" rx="9"/>
+      <text class="op-text" x="2107.5" y="785">LeakyReLU 0.01 → block output</text>
+
+      <path class="flow-skip" d="M 2107.5 846 V 824 H 2228.5 V 740" marker-end="url(#arrow-skip)"/>
+      <rect class="card-soft-plum" x="1907" y="812" width="401" height="55" rx="10"/>
+      <text class="body-bold" x="1921" y="834">skip branch / projection when needed</text>
+      <text class="body-tiny" x="1921" y="853">Identity if in=out and stride=1; else Conv3d 1×1×1 / stride s + Norm</text>
+      <text class="body-small" x="1907" y="897">Norm default: InstanceNorm3d</text>
+      <text class="body-tiny" x="1907" y="918">configurable: BatchNorm3d · GroupNorm · Identity</text>
+      <text class="body-tiny" x="1907" y="937">first encoder block projects 4→32; strided blocks project width changes</text>
+    </g>
+
+    <g id="alignment-note">
+      <rect x="70" y="958" width="1770" height="30" rx="15" fill="#f2e5ea" stroke="#c995a9" stroke-width="1.5"/>
+      <text class="body-small" x="88" y="978"><tspan class="body-bold">SKIP ALIGNMENT:</tspan> ConvTranspose3d → compare spatial shape → if mismatch, F.interpolate(mode=trilinear, align_corners=false) → cat(x, skip)</text>
+    </g>
+  </g>
+
+  <g id="model-contract-panel">
+    <rect class="panel-model" x="40" y="1045" width="730" height="330" rx="24"/>
+    <rect x="40" y="1045" width="9" height="330" rx="4" fill="#286d68"/>
+    <text class="section-label" x="68" y="1081">02 / MODEL CONTRACT</text>
+    <text class="section-note" x="68" y="1104">model emits raw region logits; evaluator owns probability conversion</text>
+
+    <rect class="card-soft-teal" x="68" y="1125" width="316" height="105" rx="14"/>
+    <text class="mini-label" x="84" y="1148">INPUT / CHANNEL ORDER</text>
+    <text class="mono-large" x="84" y="1180">[B,4,D,H,W]</text>
+    <text class="body-small" x="84" y="1205">t1n · t1c · t2w · t2f</text>
+
+    <path class="flow" d="M 390 1178 H 413" marker-end="url(#arrow-dark)"/>
+
+    <rect class="card-soft" x="420" y="1125" width="322" height="105" rx="14"/>
+    <text class="mini-label" x="436" y="1148">OUTPUT / REGION ORDER</text>
+    <text class="mono-large" x="436" y="1180">[B,3,D,H,W]</text>
+    <text class="body-small" x="436" y="1205">raw logits · ET · TC · WT</text>
+
+    <rect class="card-soft" x="68" y="1250" width="674" height="92" rx="14"/>
+    <text class="body-bold" x="84" y="1277">head = Conv3d(kernel_size=1)</text>
+    <text class="body-small" x="84" y="1299">forward verifies output spatial shape equals input spatial shape</text>
+    <text class="body-small" x="84" y="1321">sigmoid + strict &gt; 0.5 threshold happen in evaluation, not in ResUNet3D</text>
+  </g>
+
+  <g id="training-contract-panel">
+    <rect class="panel-training" x="795" y="1045" width="730" height="330" rx="24"/>
+    <rect x="795" y="1045" width="9" height="330" rx="4" fill="#a66a22"/>
+    <text class="section-label" x="823" y="1081">03 / PHASED FIT</text>
+    <text class="section-note" x="823" y="1104">run_resunet3d → native 3-D baseline → shared training engine</text>
+
+    <rect class="card-soft-orange" x="823" y="1125" width="306" height="105" rx="14"/>
+    <rect x="839" y="1141" width="170" height="21" rx="10" fill="#a66a22"/>
+    <text class="pill-text" x="851" y="1156">01 / ENCODER FROZEN</text>
+    <text class="body-bold" x="839" y="1183">freeze_encoder = true</text>
+    <text class="body-small" x="839" y="1205">decoder lr 1e-4 · enc lr 0</text>
+
+    <path class="flow" d="M 1134 1178 H 1158" marker-end="url(#arrow-dark)"/>
+
+    <rect class="card-soft-orange" x="1165" y="1125" width="332" height="105" rx="14"/>
+    <rect x="1181" y="1141" width="174" height="21" rx="10" fill="#a66a22"/>
+    <text class="pill-text" x="1193" y="1156">02 / FULL FINETUNE</text>
+    <text class="body-bold" x="1181" y="1183">freeze_encoder = false</text>
+    <text class="body-small" x="1181" y="1205">encoder + decoder lr 1e-4</text>
+
+    <rect class="card-soft" x="823" y="1250" width="674" height="92" rx="14"/>
+    <text class="body-bold" x="839" y="1277">loss: binary_cross_entropy_with_logits</text>
+    <text class="body-small" x="839" y="1299">monitor: mean_dice ↑  ·  validation selects best.pt</text>
+    <text class="body-small" x="839" y="1321">best.pt restored before held-out full-volume evaluation</text>
+    <text class="body-tiny" x="839" y="1338">profiles: debug = 1 + 1 epochs · full = 20 + 80 epochs</text>
+  </g>
+
+  <g id="transfer-provenance-panel">
+    <rect class="panel-transfer" x="1550" y="1045" width="810" height="330" rx="24"/>
+    <rect x="1550" y="1045" width="9" height="330" rx="4" fill="#655a91"/>
+    <text class="section-label" x="1578" y="1081">04 / TRANSFER + PROVENANCE</text>
+    <text class="section-note" x="1578" y="1104">two similarly named artifacts, two different boundaries</text>
+
+    <rect class="card-soft-teal" x="1578" y="1125" width="754" height="90" rx="14"/>
+    <text class="mini-label" x="1594" y="1147">SUPPORTED RESUNET3D ROUTE</text>
+    <text class="mono" x="1594" y="1173">timm:resnet18.a1_in1k</text>
+    <path class="flow-transfer" d="M 1790 1168 H 1820" marker-end="url(#arrow-transfer)"/>
+    <text class="body-bold" x="1832" y="1173">model.encoder only</text>
+    <text class="body-small" x="1594" y="1197">explicit key map · 2-D kernels inflated/adapted · coverage reported</text>
+
+    <rect class="card-transfer" x="1578" y="1232" width="754" height="70" rx="14"/>
+    <text class="mini-label" x="1594" y="1254">SEPARATE CNN DENOISING ARTIFACT</text>
+    <text class="mono" x="1594" y="1278">encoder_best.pth</text>
+    <text class="body-small" x="1765" y="1278">2-D ImageFolder pretraining · not this pipeline's ResUNet3D transfer source</text>
+
+    <rect class="card-soft" x="1578" y="1318" width="754" height="40" rx="12"/>
+    <text class="body-small" x="1594" y="1343">recorded metadata: transfer_requested · status · source · count(s)  ·  default disabled/offline</text>
+  </g>
+
+  <g id="footer">
+    <line class="rule" x1="70" y1="1410" x2="2330" y2="1410"/>
+    <text class="body-small" x="70" y="1440">Verified against active src/token_mixer/models/resunet3d.py, train_resunet3d.py, weight_transfer.py, configs/model/resunet3d.yaml, configs/data/brats.yaml, and tests/models/.</text>
+    <text class="body-small" x="1910" y="1440">hand-authored · grayscale-safe · no external assets</text>
+  </g>
+</svg>
