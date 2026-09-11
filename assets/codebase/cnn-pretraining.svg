@@ -1,0 +1,361 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1350" viewBox="0 0 2400 1350" role="img" aria-labelledby="cnn-pretraining-title cnn-pretraining-desc">
+  <title id="cnn-pretraining-title">CNN denoising pretraining from ImageFolder images to an exported encoder</title>
+  <desc id="cnn-pretraining-desc">A standalone five-stage flow for the repository's separate two-dimensional CNN denoising pretraining lane. ImageFolder images are transformed, deterministically split, and wrapped as noisy and clean pairs. A four-level convolutional encoder feeds a skip-connected decoder. Validation compares denoised outputs with clean targets using MSE and PSNR, then the best checkpoint is restored and the encoder is exported to encoder_best.pth. A lower contract band records train drop-last behavior, image-count guards, optional reconstruction-grid output, and metrics.json with test_metrics null. This path is independent from BraTS segmentation.</desc>
+  <style><![CDATA[
+    .canvas { fill: #f3efe7; }
+    .card { fill: #fffdf8; stroke: #1b292e; stroke-width: 2; }
+    .card-input { fill: #e5f1ee; stroke: #28736d; stroke-width: 2; }
+    .card-encoder { fill: #eeeaf5; stroke: #675995; stroke-width: 2; }
+    .card-decoder { fill: #f6ead8; stroke: #a66b27; stroke-width: 2; }
+    .card-metric { fill: #e7eff3; stroke: #47738a; stroke-width: 2; }
+    .card-export { fill: #e8ebe7; stroke: #29383d; stroke-width: 2; }
+    .surface { fill: #fffdf8; stroke: #b9c4c0; stroke-width: 1.5; }
+    .surface-teal { fill: #f8fcfb; stroke: #8ebbb4; stroke-width: 1.5; }
+    .surface-plum { fill: #faf8fd; stroke: #aaa3c6; stroke-width: 1.5; }
+    .surface-amber { fill: #fffaf1; stroke: #d3ad78; stroke-width: 1.5; }
+    .surface-blue { fill: #f7fafc; stroke: #9ab7c5; stroke-width: 1.5; }
+    .surface-dark { fill: #f5f7f4; stroke: #a9b4b0; stroke-width: 1.5; }
+    .contract { fill: #fffaf0; stroke: #b98545; stroke-width: 2; }
+    .title { fill: #172329; font-family: Georgia, 'Times New Roman', serif; font-size: 46px; font-weight: 700; letter-spacing: -1px; }
+    .subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 18px; }
+    .kicker { fill: #28736d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2.5px; }
+    .scope-label { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1.8px; }
+    .scope-note { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 15px; }
+    .card-title { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 23px; font-weight: 700; }
+    .card-subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body-small { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .body-tiny { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; }
+    .body-bold { fill: #1d2c31; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; }
+    .body-bold-small { fill: #1d2c31; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; }
+    .mono { fill: #1d2c31; font-family: 'Courier New', Courier, monospace; font-size: 12px; }
+    .mono-small { fill: #526064; font-family: 'Courier New', Courier, monospace; font-size: 11px; }
+    .mono-white { fill: #fffdf8; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+    .pill-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+    .tag-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .7px; }
+    .stage-number { fill: #fffdf8; font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 700; }
+    .arrow-label { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .7px; text-anchor: middle; }
+    .mini-label { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .7px; }
+    .metric-number { fill: #172329; font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 700; }
+    .rule { stroke: #b9c2bf; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #24343a; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+    .flow-teal { fill: none; stroke: #28736d; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+    .flow-dashed { fill: none; stroke: #675995; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 7 7; }
+    .dot { fill: #24343a; }
+    .dot-teal { fill: #28736d; }
+    .dot-plum { fill: #675995; }
+    .image-frame { fill: #fbfbf8; stroke: #526064; stroke-width: 1.5; }
+    .image-dark { fill: #455156; }
+    .image-mid { fill: #899396; }
+    .image-light { fill: #d5d9d5; }
+  ]]></style>
+  <defs>
+    <marker id="arrow-dark" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#24343a"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#28736d"/>
+    </marker>
+    <marker id="arrow-plum" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#675995"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" x="0" y="0" width="2400" height="1350"/>
+
+  <g id="header">
+    <text class="kicker" x="60" y="58">TOKEN MIXER / MODEL PRETRAINING</text>
+    <text class="title" x="60" y="112">CNN denoising pretraining</text>
+    <text class="subtitle" x="60" y="146">ImageFolder pixels become clean reconstruction targets, then a best-checkpoint encoder becomes a transfer-ready artifact.</text>
+
+    <rect x="1810" y="38" width="530" height="102" rx="20" fill="#172329"/>
+    <text class="pill-text" x="1836" y="66">SEPARATE 2-D LANE</text>
+    <text class="mono-white" x="1836" y="94">ImageFolder  ≠  BraTS segmentation</text>
+    <text x="1836" y="119" fill="#b9c7c6" font-family="'Trebuchet MS','Segoe UI',sans-serif" font-size="12">no NIfTI volumes · no case manifest · no segmentation labels</text>
+  </g>
+
+  <g id="scope-strip">
+    <rect class="surface" x="60" y="184" width="2280" height="76" rx="18"/>
+    <rect x="60" y="184" width="9" height="76" rx="4" fill="#28736d"/>
+    <text class="scope-label" x="88" y="214">RUN CONTRACT</text>
+    <text class="scope-note" x="88" y="238">seed_everything(seed, deterministic=True)</text>
+    <path class="flow-teal" d="M 430 226 H 464" marker-end="url(#arrow-teal)"/>
+    <text class="mono" x="490" y="231">build_denoising_model(cfg)</text>
+    <path class="flow-teal" d="M 790 226 H 824" marker-end="url(#arrow-teal)"/>
+    <text class="mono" x="850" y="231">shared fit + validation</text>
+    <path class="flow-teal" d="M 1120 226 H 1154" marker-end="url(#arrow-teal)"/>
+    <text class="mono" x="1180" y="231">restore best</text>
+    <path class="flow-teal" d="M 1334 226 H 1368" marker-end="url(#arrow-teal)"/>
+    <text class="mono" x="1394" y="231">_export_encoder(...)</text>
+    <rect x="1834" y="201" width="480" height="42" rx="12" fill="#e5f1ee" stroke="#8ebbb4"/>
+    <text class="body-bold" x="1852" y="227">2-D tensors · default 3 channels · default 96 × 96</text>
+  </g>
+
+  <g id="main-flow">
+    <text class="arrow-label" x="490" y="585">PAIRED TENSORS</text>
+    <path class="flow-teal" d="M 470 632 H 510" marker-end="url(#arrow-teal)"/>
+    <text class="arrow-label" x="940" y="585">BOTTLENECK + SKIPS</text>
+    <path class="flow" d="M 920 632 H 960" marker-end="url(#arrow-dark)"/>
+    <text class="arrow-label" x="1390" y="585">PREDICTION</text>
+    <path class="flow" d="M 1370 632 H 1410" marker-end="url(#arrow-dark)"/>
+    <text class="arrow-label" x="1860" y="585">BEST MSE</text>
+    <path class="flow" d="M 1840 632 H 1880" marker-end="url(#arrow-dark)"/>
+
+    <g id="input-card">
+      <rect class="card-input" x="60" y="300" width="410" height="700" rx="22"/>
+      <rect x="60" y="300" width="410" height="9" rx="4" fill="#28736d"/>
+      <circle cx="94" cy="352" r="19" fill="#28736d"/>
+      <text class="stage-number" x="94" y="360" text-anchor="middle">1</text>
+      <text class="card-title" x="126" y="357">Input images</text>
+      <text class="card-subtitle" x="82" y="387">ImageFolder(root) · 2-D image classes</text>
+
+      <rect class="surface-teal" x="82" y="418" width="366" height="142" rx="14"/>
+      <text class="body-bold" x="102" y="446">configured source</text>
+      <text class="mono" x="102" y="469">data.image_root</text>
+      <text class="mono-small" x="102" y="490">${runtime}/imagenet/</text>
+      <text class="mono-small" x="102" y="509">  class_name/ image_*.jpg|png</text>
+      <text class="body-small" x="102" y="538">root must exist · at least 2 images</text>
+      <g transform="translate(350 438)">
+        <rect class="image-frame" x="0" y="0" width="28" height="28" rx="4"/>
+        <rect class="image-mid" x="5" y="15" width="18" height="8" rx="2"/>
+        <circle class="image-dark" cx="19" cy="9" r="3"/>
+        <rect class="image-frame" x="34" y="0" width="28" height="28" rx="4"/>
+        <path class="image-dark" d="M 39 22 L 48 11 L 57 22 z"/>
+        <circle class="image-mid" cx="56" cy="8" r="3"/>
+        <rect class="image-frame" x="68" y="0" width="28" height="28" rx="4"/>
+        <path class="image-mid" d="M 73 22 L 80 14 L 85 18 L 91 10 L 95 22 z"/>
+      </g>
+
+      <rect class="surface" x="82" y="578" width="366" height="112" rx="14"/>
+      <text class="body-bold" x="102" y="607">build_dataloaders</text>
+      <text class="body-small" x="102" y="628">transforms: crop · flips · rotation · ToTensor</text>
+      <text class="mono-small" x="102" y="650">torch.randperm(..., generator)</text>
+      <text class="body-small" x="102" y="670">seeded train / validation split</text>
+
+      <rect class="surface-amber" x="82" y="708" width="366" height="220" rx="14"/>
+      <text class="body-bold" x="102" y="737">DenoisingDataset</text>
+      <text class="body-small" x="102" y="757">clean image [C,H,W]</text>
+      <path class="flow-teal" d="M 102 780 H 144" marker-end="url(#arrow-teal)"/>
+      <text class="body-small" x="158" y="784">+ σ · randn → clamp [0,1]</text>
+      <text class="body-small" x="102" y="810">noisy image</text>
+      <path class="flow-teal" d="M 102 824 H 144" marker-end="url(#arrow-teal)"/>
+      <text class="body-small" x="158" y="828">return (noisy_image, clean_image)</text>
+      <line class="rule" x1="102" y1="848" x2="428" y2="848"/>
+      <text class="mono-small" x="102" y="871">noise_std = 0.15 · val_fraction = 0.05</text>
+      <text class="body-tiny" x="102" y="897">active config: RGB; implementation supports 1 or 3 channels</text>
+
+      <rect x="82" y="950" width="366" height="28" rx="14" fill="#28736d"/>
+      <text class="tag-text" x="102" y="969">PAIR CONTRACT: INPUT ≠ TARGET</text>
+    </g>
+
+    <g id="encoder-card">
+      <rect class="card-encoder" x="510" y="300" width="410" height="700" rx="22"/>
+      <rect x="510" y="300" width="410" height="9" rx="4" fill="#675995"/>
+      <circle cx="544" cy="352" r="19" fill="#675995"/>
+      <text class="stage-number" x="544" y="360" text-anchor="middle">2</text>
+      <text class="card-title" x="576" y="357">Denoising encoder</text>
+      <text class="card-subtitle" x="532" y="387">PretrainCNNEncoder · four levels</text>
+
+      <rect x="532" y="418" width="366" height="40" rx="12" fill="#675995"/>
+      <text class="pill-text" x="550" y="443">FEATURE SIZE 32 · DEPTHS [1, 1, 1, 1]</text>
+
+      <rect class="surface-plum" x="532" y="478" width="366" height="64" rx="12"/>
+      <text class="body-bold" x="550" y="503">stem</text>
+      <text class="body-small" x="550" y="524">2 × Conv2d stride 2</text>
+      <text class="mono-small" x="730" y="513">[B, 3, 96, 96]</text>
+      <text class="mono-small" x="730" y="529">→ [B, 32, 24, 24]</text>
+
+      <rect class="surface-plum" x="532" y="554" width="366" height="60" rx="12"/>
+      <text class="body-bold" x="550" y="579">stage1</text>
+      <text class="body-small" x="550" y="599">CNNBlock2D × 1 · skip s1 / s2</text>
+      <text class="mono-small" x="730" y="589">C=32 · 24 × 24</text>
+
+      <rect class="surface-plum" x="532" y="626" width="366" height="60" rx="12"/>
+      <text class="body-bold" x="550" y="651">down1 → stage2</text>
+      <text class="body-small" x="550" y="671">stride 2 · CNNBlock2D × 1</text>
+      <text class="mono-small" x="730" y="661">C=64 · 12 × 12</text>
+
+      <rect class="surface-plum" x="532" y="698" width="366" height="60" rx="12"/>
+      <text class="body-bold" x="550" y="723">down2 → stage3</text>
+      <text class="body-small" x="550" y="743">stride 2 · CNNBlock2D × 1</text>
+      <text class="mono-small" x="730" y="733">C=128 · 6 × 6</text>
+
+      <rect class="surface-plum" x="532" y="770" width="366" height="60" rx="12"/>
+      <text class="body-bold" x="550" y="795">down3 → stage4</text>
+      <text class="body-small" x="550" y="815">stride 2 · CNNBlock2D × 1</text>
+      <text class="mono-small" x="730" y="805">C=256 · 3 × 3</text>
+
+      <rect class="surface-dark" x="532" y="842" width="366" height="70" rx="12"/>
+      <text class="body-bold" x="550" y="869">bottleneck</text>
+      <text class="mono-small" x="550" y="891">return bottleneck, [s1, s2, s3, s4]</text>
+
+      <rect x="532" y="932" width="366" height="46" rx="12" fill="#675995"/>
+      <text class="mono-white" x="550" y="960">build_denoising_model(cfg)</text>
+    </g>
+
+    <g id="skip-connection">
+      <path class="flow-dashed" d="M 898 462 C 944 430, 948 430, 982 462" marker-end="url(#arrow-plum)"/>
+      <text class="mini-label" x="940" y="422" text-anchor="middle" fill="#675995">skip features s2 · s3 · s4</text>
+    </g>
+
+    <g id="decoder-card">
+      <rect class="card-decoder" x="960" y="300" width="410" height="700" rx="22"/>
+      <rect x="960" y="300" width="410" height="9" rx="4" fill="#a66b27"/>
+      <circle cx="994" cy="352" r="19" fill="#a66b27"/>
+      <text class="stage-number" x="994" y="360" text-anchor="middle">3</text>
+      <text class="card-title" x="1026" y="357">Decoder</text>
+      <text class="card-subtitle" x="982" y="387">DenoisingAutoencoder · clean-image head</text>
+
+      <rect x="982" y="418" width="366" height="40" rx="12" fill="#a66b27"/>
+      <text class="pill-text" x="1000" y="443">UPSAMPLE → CONCAT SKIP → REFINE</text>
+
+      <rect class="surface-amber" x="982" y="478" width="366" height="66" rx="12"/>
+      <text class="body-bold" x="1000" y="504">dec4 · DecoderStage2D</text>
+      <text class="body-small" x="1000" y="526">↑ + s4 → refine</text>
+      <text class="mono-small" x="1174" y="516">256 → 128 · 6 × 6</text>
+
+      <rect class="surface-amber" x="982" y="556" width="366" height="66" rx="12"/>
+      <text class="body-bold" x="1000" y="582">dec3 · DecoderStage2D</text>
+      <text class="body-small" x="1000" y="604">↑ + s3 → refine</text>
+      <text class="mono-small" x="1174" y="594">128 → 64 · 12 × 12</text>
+
+      <rect class="surface-amber" x="982" y="634" width="366" height="66" rx="12"/>
+      <text class="body-bold" x="1000" y="660">dec2 · DecoderStage2D</text>
+      <text class="body-small" x="1000" y="682">↑ + s2 → refine</text>
+      <text class="mono-small" x="1174" y="672">64 → 32 · 24 × 24</text>
+
+      <rect class="surface-amber" x="982" y="712" width="366" height="66" rx="12"/>
+      <text class="body-bold" x="1000" y="738">dec1</text>
+      <text class="body-small" x="1000" y="760">2 × ConvTranspose2d → refine</text>
+      <text class="mono-small" x="1174" y="750">32 · 24 × 24 → 96 × 96</text>
+
+      <rect class="surface-dark" x="982" y="790" width="366" height="66" rx="12"/>
+      <text class="body-bold" x="1000" y="816">head</text>
+      <text class="body-small" x="1000" y="838">Conv2d → Sigmoid</text>
+      <text class="mono-small" x="1174" y="828">→ [B, 3, 96, 96]</text>
+
+      <rect class="surface" x="982" y="878" width="366" height="100" rx="12"/>
+      <text class="body-bold" x="1000" y="905">shape-preserving output</text>
+      <text class="body-small" x="1000" y="929">bilinear align if needed</text>
+      <text class="mono-small" x="1000" y="952">DenoisingAutoencoder(x) → prediction</text>
+    </g>
+
+    <g id="metric-card">
+      <rect class="card-metric" x="1410" y="300" width="430" height="700" rx="22"/>
+      <rect x="1410" y="300" width="430" height="9" rx="4" fill="#47738a"/>
+      <circle cx="1444" cy="352" r="19" fill="#47738a"/>
+      <text class="stage-number" x="1444" y="360" text-anchor="middle">4</text>
+      <text class="card-title" x="1476" y="357">Reconstruct + validate</text>
+      <text class="card-subtitle" x="1432" y="387">noisy input → denoised prediction → clean target</text>
+
+      <g id="reconstruction-strip">
+        <rect class="image-frame" x="1432" y="426" width="112" height="112" rx="10"/>
+        <rect class="image-light" x="1442" y="436" width="92" height="92" rx="6"/>
+        <path class="image-dark" d="M 1442 509 L 1464 480 L 1480 495 L 1502 459 L 1534 510 L 1534 528 L 1442 528 z"/>
+        <circle class="image-mid" cx="1511" cy="456" r="9"/>
+        <rect class="image-frame" x="1562" y="426" width="112" height="112" rx="10"/>
+        <rect class="image-light" x="1572" y="436" width="92" height="92" rx="6"/>
+        <path class="image-dark" d="M 1572 512 L 1590 488 L 1608 499 L 1622 474 L 1640 490 L 1664 462 L 1664 528 L 1572 528 z"/>
+        <circle class="image-mid" cx="1647" cy="453" r="8"/>
+        <rect class="image-frame" x="1692" y="426" width="112" height="112" rx="10"/>
+        <rect class="image-light" x="1702" y="436" width="92" height="92" rx="6"/>
+        <path class="image-dark" d="M 1702 512 L 1724 480 L 1742 494 L 1762 464 L 1780 485 L 1804 456 L 1804 528 L 1702 528 z"/>
+        <circle class="image-mid" cx="1785" cy="451" r="8"/>
+        <text class="mini-label" x="1488" y="557" text-anchor="middle">NOISY x</text>
+        <text class="mini-label" x="1618" y="557" text-anchor="middle">DENOISED ŷ</text>
+        <text class="mini-label" x="1748" y="557" text-anchor="middle">CLEAN y</text>
+      </g>
+
+      <rect class="surface-blue" x="1432" y="580" width="386" height="70" rx="12"/>
+      <text class="body-bold" x="1450" y="607">evaluate_denoising(model, val_loader)</text>
+      <text class="body-small" x="1450" y="630">batch-size-weighted validation statistics</text>
+
+      <rect class="surface" x="1432" y="666" width="184" height="92" rx="12"/>
+      <text class="mini-label" x="1450" y="690">MSE ↓</text>
+      <text class="metric-number" x="1450" y="724">mse</text>
+      <text class="body-tiny" x="1450" y="744">mse_loss(pred, target)</text>
+      <rect class="surface" x="1634" y="666" width="184" height="92" rx="12"/>
+      <text class="mini-label" x="1652" y="690">PSNR ↑</text>
+      <text class="metric-number" x="1652" y="724">psnr</text>
+      <text class="body-tiny" x="1652" y="744">compute_psnr(mean_mse)</text>
+
+      <rect class="surface-dark" x="1432" y="774" width="386" height="82" rx="12"/>
+      <text class="mono" x="1450" y="802">PSNR = 10 · log10(1 / MSE)</text>
+      <text class="body-small" x="1450" y="826">unit-range images · MSE = 0 returns 100.0</text>
+      <text class="body-tiny" x="1450" y="844">monitor: mse · minimize</text>
+
+      <rect class="surface-blue" x="1432" y="874" width="386" height="104" rx="12"/>
+      <text class="body-bold" x="1450" y="901">optional reconstruction grid</text>
+      <text class="mono-small" x="1450" y="924">visualization.reconstruction_grid: true</text>
+      <text class="body-small" x="1450" y="947">num_images override · default disabled</text>
+      <text class="mono-small" x="1450" y="966">cnn_reconstruction_grid.png</text>
+    </g>
+
+    <g id="export-card">
+      <rect class="card-export" x="1880" y="300" width="460" height="700" rx="22"/>
+      <rect x="1880" y="300" width="460" height="9" rx="4" fill="#29383d"/>
+      <circle cx="1914" cy="352" r="19" fill="#29383d"/>
+      <text class="stage-number" x="1914" y="360" text-anchor="middle">5</text>
+      <text class="card-title" x="1946" y="357">Export encoder artifact</text>
+      <text class="card-subtitle" x="1902" y="387">best checkpoint restored before handoff</text>
+
+      <rect class="surface-dark" x="1902" y="426" width="416" height="74" rx="12"/>
+      <text class="body-bold" x="1920" y="453">checkpoints / best.pt</text>
+      <text class="body-small" x="1920" y="476">restore model state + monitored MSE</text>
+
+      <path class="flow" d="M 2110 500 V 526" marker-end="url(#arrow-dark)"/>
+
+      <rect x="1902" y="536" width="416" height="52" rx="12" fill="#29383d"/>
+      <text class="mono-white" x="1920" y="568">_export_encoder(model, output_dir, ...)</text>
+
+      <rect class="surface" x="1902" y="608" width="416" height="128" rx="14"/>
+      <text class="body-bold" x="1920" y="638">encoder_best.pth</text>
+      <text class="mono-small" x="1920" y="663">encoder_state_dict</text>
+      <text class="mono-small" x="1920" y="684">source_model_config</text>
+      <text class="mono-small" x="1920" y="705">epoch · val_loss</text>
+      <rect x="1920" y="716" width="376" height="8" rx="4" fill="#29383d"/>
+
+      <rect class="surface" x="1902" y="758" width="416" height="126" rx="14"/>
+      <text class="body-bold" x="1920" y="788">run artifacts</text>
+      <text class="mono-small" x="1920" y="812">config.yaml · provenance.json</text>
+      <text class="mono-small" x="1920" y="833">metrics.json</text>
+      <text class="body-bold-small" x="1920" y="861">test_metrics: null</text>
+
+      <rect class="surface-teal" x="1902" y="906" width="416" height="72" rx="14"/>
+      <text class="body-bold" x="1920" y="934">CPU-normalized encoder weights</text>
+      <text class="body-small" x="1920" y="956">ready for later weight transfer · no BraTS branch</text>
+    </g>
+  </g>
+
+  <g id="contract-band">
+    <line class="rule" x1="60" y1="1040" x2="2340" y2="1040"/>
+    <text class="kicker" x="60" y="1074">IMAGE COUNT + ARTIFACT CONTRACT</text>
+
+    <rect class="contract" x="60" y="1094" width="720" height="156" rx="18"/>
+    <text class="body-bold" x="84" y="1124">TRAIN / VALIDATION COUNT GUARDS</text>
+    <text class="mono-small" x="84" y="1152">N = selected dataset_size ≥ 2 · n_val = max(1, floor(N · val_fraction))</text>
+    <text class="mono-small" x="84" y="1174">n_val ≤ N − 1 · train_count = N − n_val</text>
+    <text class="body-small" x="84" y="1204">torch.randperm selects subset before split; generator is seeded.</text>
+    <text class="body-tiny" x="84" y="1228">A tiny ImageFolder can fail before training if no valid train batch remains.</text>
+
+    <rect class="surface" x="810" y="1094" width="720" height="156" rx="18"/>
+    <text class="body-bold" x="834" y="1124">DROP-LAST BEHAVIOR</text>
+    <text class="mono-small" x="834" y="1152">train: drop_last = configurable · default True</text>
+    <text class="mono-small" x="834" y="1174">val: drop_last = False · final validation batch kept</text>
+    <text class="body-small" x="834" y="1204">When train drop_last is true, remainder images are not yielded.</text>
+    <text class="body-tiny" x="834" y="1228">Keep train_count ≥ batch_size for at least one training batch.</text>
+
+    <rect class="surface-dark" x="1560" y="1094" width="780" height="156" rx="18"/>
+    <text class="body-bold" x="1584" y="1124">COMPLETION SURFACE</text>
+    <text class="mono-small" x="1584" y="1152">metrics.json: best_epoch · best_metric · history</text>
+    <text class="mono-small" x="1584" y="1174">test_metrics: null  ·  validation only</text>
+    <text class="body-small" x="1584" y="1204">Optional grid is opt-in; exported file is encoder_best.pth.</text>
+    <text class="body-tiny" x="1584" y="1228">CNN/ImageFolder path ends here; it does not enter BraTS segmentation training.</text>
+  </g>
+
+  <g id="footer">
+    <line class="rule" x1="60" y1="1280" x2="2340" y2="1280"/>
+    <text class="body-small" x="60" y="1310">hand-authored SVG · embedded styles · internal markers only · grayscale-safe hierarchy</text>
+    <text class="body-small" x="1870" y="1310">active source spelling: compute_psnr</text>
+  </g>
+</svg>
