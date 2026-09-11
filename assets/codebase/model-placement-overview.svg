@@ -1,0 +1,266 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2480" height="1480" viewBox="0 0 2480 1480" role="img" aria-labelledby="model-placement-title model-placement-desc">
+  <title id="model-placement-title">MetaUNETR shared encoder decoder shape and Mamba placement slots</title>
+  <desc id="model-placement-desc">A shared five-skip MetaUNETR path is drawn as an orthogonal U-shaped encoder and decoder. The encoder descends from a four-channel volume through encoder adapters, four token-mixer stages, and a 16C bottleneck. The decoder ascends through five skip-fusion stages to a three-channel raw-logit head. Plum placement slots identify the bottleneck, encoder-stage, and coarse-decoder alternatives used by the three project variants. Lower panels record verified token scan shapes, training settings, legend semantics, and the CPU or optional CUDA Mamba boundary.</desc>
+  <style><![CDATA[
+    .canvas { fill: #f4f1eb; }
+    .panel { fill: #fffdf8; stroke: #c9d0cd; stroke-width: 2; }
+    .group-encoder { fill: #f8fbfa; stroke: #9bbdb8; stroke-width: 2; }
+    .group-decoder { fill: #fff9ef; stroke: #d2ad79; stroke-width: 2; }
+    .card { stroke: #1e2b30; stroke-width: 2; }
+    .input-card { fill: #e1efec; stroke: #286d68; }
+    .adapter-card { fill: #e6eef4; stroke: #3c6c8c; }
+    .stage-card { fill: #fffdf8; stroke: #526064; }
+    .bottleneck-card { fill: #ebe8f3; stroke: #655a91; }
+    .decoder-card { fill: #f4ead8; stroke: #a66a22; }
+    .output-card { fill: #e8e9e6; stroke: #29383d; }
+    .note-card { fill: #fff6e5; stroke: #c68e4d; }
+    .footer-card { fill: #fffdf8; stroke: #c9d0cd; stroke-width: 2; }
+    .mamba-chip { fill: #96526d; stroke: #96526d; }
+    .cnn-chip { fill: #4e753d; stroke: #4e753d; }
+    .identity-chip { fill: #667276; stroke: #667276; }
+    .dark-callout { fill: #172329; }
+    .title { fill: #172329; font-family: Georgia, 'Times New Roman', serif; font-size: 42px; font-weight: 700; letter-spacing: -0.8px; }
+    .subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 18px; }
+    .kicker { fill: #96526d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2.4px; }
+    .panel-label { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 1.8px; }
+    .panel-note { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .group-label { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+    .group-note { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .card-title { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 16px; font-weight: 700; }
+    .card-subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; }
+    .body { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body-small { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .body-bold { fill: #1d2c31; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; }
+    .mono { fill: #1d2c31; font-family: 'Courier New', Courier, monospace; font-size: 12px; }
+    .mono-small { fill: #526064; font-family: 'Courier New', Courier, monospace; font-size: 11px; }
+    .pill-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.9px; }
+    .tag-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+    .mini-label { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .white-body { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .white-mono { fill: #fffdf8; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+    .rule { stroke: #b9c2bf; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #24343a; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .skip-flow { fill: none; stroke: #655a91; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 9 7; }
+    .flow-soft { fill: none; stroke: #526064; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .dot { fill: #24343a; }
+    .port { fill: #655a91; stroke: #fffdf8; stroke-width: 2; }
+  ]]></style>
+  <defs>
+    <marker id="overview-arrow-dark" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#24343a"/>
+    </marker>
+    <marker id="overview-arrow-skip" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#655a91"/>
+    </marker>
+    <marker id="overview-arrow-soft" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#526064"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" x="0" y="0" width="2480" height="1480"/>
+
+  <g id="header">
+    <text class="kicker" x="70" y="58">TOKEN MIXER / MODEL CONTRACT</text>
+    <text class="title" x="70" y="108">One MetaUNETR. Three deliberate mixer placements.</text>
+    <text class="subtitle" x="70" y="141">Shared five-skip geometry stays fixed; only one family of token-mixer slots moves.</text>
+    <rect class="dark-callout" x="1760" y="36" width="650" height="108" rx="18"/>
+    <text class="pill-text" x="1790" y="64">CANONICAL MODEL CONTRACT</text>
+    <text class="white-mono" x="1790" y="94">[B,4,D,H,W]  &#x2192;  [B,3,D,H,W]</text>
+    <text class="white-body" x="1790" y="119">native 3-D &#xB7; ET / TC / WT &#xB7; raw logits</text>
+  </g>
+
+  <g id="shared-shape-panel">
+    <rect class="panel" x="40" y="190" width="2400" height="900" rx="28"/>
+    <rect x="40" y="190" width="10" height="900" rx="5" fill="#96526d"/>
+    <text class="panel-label" x="75" y="228">01 / SHARED METAUNETR SHAPE</text>
+    <text class="panel-note" x="430" y="228">same stem, widths, depths, five skips, decoder scales, and 1&#xD7;1 head</text>
+
+    <rect class="group-encoder" x="80" y="260" width="850" height="790" rx="22"/>
+    <rect class="group-decoder" x="1550" y="260" width="830" height="790" rx="22"/>
+    <text class="group-label" x="110" y="294">ENCODER / FIVE SKIPS</text>
+    <text class="group-note" x="110" y="315">MONAI adapters are channels-first; stages enter channels-last mixers</text>
+    <text class="group-label" x="1580" y="294">DECODER / SKIP FUSION</text>
+    <text class="group-note" x="1580" y="315">CNN up-blocks are shared; Mod B swaps coarse refinements only</text>
+    <text class="mini-label" x="1015" y="826">BOTTLENECK / MIDDLE</text>
+    <text class="mini-label" x="1000" y="302">ORTHOGONAL SKIP ROUTES</text>
+
+    <!-- Skip routes sit behind cards so each route remains legible in the central gap. -->
+    <path class="skip-flow" d="M 880 441 H 1590" marker-end="url(#overview-arrow-skip)"/>
+    <path class="skip-flow" d="M 880 541 H 1590" marker-end="url(#overview-arrow-skip)"/>
+    <path class="skip-flow" d="M 880 641 H 1590" marker-end="url(#overview-arrow-skip)"/>
+    <path class="skip-flow" d="M 880 741 H 1590" marker-end="url(#overview-arrow-skip)"/>
+    <path class="skip-flow" d="M 880 841 H 1590" marker-end="url(#overview-arrow-skip)"/>
+    <text class="body-small" x="1110" y="426">skip0</text>
+    <text class="body-small" x="1110" y="526">skip1</text>
+    <text class="body-small" x="1110" y="626">skip2</text>
+    <text class="body-small" x="1110" y="726">skip3</text>
+    <text class="body-small" x="1110" y="826">skip4</text>
+
+    <!-- Main encoder flow. -->
+    <path class="flow" d="M 500 373 V 400" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 500 482 V 500" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 500 582 V 600" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 500 682 V 700" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 500 782 V 800" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 500 882 V 900" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 500 982 V 1005 H 970 V 912 H 1000" marker-end="url(#overview-arrow-dark)"/>
+
+    <!-- Main decoder flow rises from the bottleneck to the output. -->
+    <path class="flow" d="M 1430 912 H 1510 V 882 H 1590" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 1960 800 V 782" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 1960 700 V 682" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 1960 600 V 582" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 1960 500 V 482" marker-end="url(#overview-arrow-dark)"/>
+    <path class="flow" d="M 1960 400 V 373" marker-end="url(#overview-arrow-dark)"/>
+
+    <!-- Explicit external input and output arrows. -->
+    <path class="flow" d="M 70 344 H 120" marker-end="url(#overview-arrow-dark)"/>
+    <text class="mini-label" x="70" y="329">INPUT</text>
+    <path class="flow" d="M 2340 344 H 2410" marker-end="url(#overview-arrow-dark)"/>
+    <text class="mini-label" x="2310" y="329">OUTPUT</text>
+
+    <g id="encoder-cards">
+      <rect class="card input-card" x="120" y="315" width="760" height="58" rx="14"/>
+      <text class="card-title" x="145" y="340">input volume</text>
+      <text class="mono" x="365" y="340">[B,4,D,H,W] &#xB7; spatial axes divisible by 32</text>
+      <text class="body-small" x="365" y="359">four ordered MRI modalities</text>
+
+      <rect class="card adapter-card" x="120" y="400" width="760" height="82" rx="14"/>
+      <text class="card-title" x="145" y="430">encoder1 / full-resolution adapter</text>
+      <text class="card-subtitle" x="145" y="454">UnetrBasicBlock &#xB7; width C &#xB7; skip0</text>
+      <rect class="cnn-chip" x="765" y="416" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="780" y="432">ADAPTER</text>
+
+      <rect class="card adapter-card" x="120" y="500" width="760" height="82" rx="14"/>
+      <text class="card-title" x="145" y="530">stem &#x2192; encoder2 / 1/2</text>
+      <text class="card-subtitle" x="145" y="554">Conv3d k2/s2 &#xB7; LayerNorm &#xB7; UnetrBasicBlock &#xB7; C &#xB7; skip1</text>
+      <rect class="cnn-chip" x="765" y="516" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="780" y="532">ADAPTER</text>
+
+      <rect class="card stage-card" x="120" y="600" width="760" height="82" rx="14"/>
+      <text class="card-title" x="145" y="630">stage[0] + downsample / 1/4</text>
+      <text class="card-subtitle" x="145" y="654">depth 2 &#xB7; C &#x2192; 2C &#xB7; encoder3 &#xB7; skip2</text>
+      <rect class="mamba-chip" x="765" y="616" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="783" y="632">M SLOT</text>
+
+      <rect class="card stage-card" x="120" y="700" width="760" height="82" rx="14"/>
+      <text class="card-title" x="145" y="730">stage[1] + downsample / 1/8</text>
+      <text class="card-subtitle" x="145" y="754">depth 2 &#xB7; 2C &#x2192; 4C &#xB7; encoder4 &#xB7; skip3</text>
+      <rect class="mamba-chip" x="765" y="716" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="783" y="732">M SLOT</text>
+
+      <rect class="card stage-card" x="120" y="800" width="760" height="82" rx="14"/>
+      <text class="card-title" x="145" y="830">stage[2] + downsample / 1/16</text>
+      <text class="card-subtitle" x="145" y="854">depth 2 &#xB7; 4C &#x2192; 8C &#xB7; encoder5 &#xB7; skip4</text>
+      <rect class="mamba-chip" x="765" y="816" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="783" y="832">M SLOT</text>
+
+      <rect class="card stage-card" x="120" y="900" width="760" height="82" rx="14"/>
+      <text class="card-title" x="145" y="930">stage[3] + downsample / 1/32</text>
+      <text class="card-subtitle" x="145" y="954">depth 2 &#xB7; 8C &#x2192; 16C &#xB7; encoder10</text>
+      <rect class="identity-chip" x="765" y="916" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="782" y="932">BRIDGE</text>
+    </g>
+
+    <g id="bottleneck-card">
+      <rect class="card bottleneck-card" x="1000" y="850" width="430" height="125" rx="16"/>
+      <text class="card-title" x="1025" y="881">bottleneck / 1/32</text>
+      <text class="mono" x="1025" y="906">[B,16C,D/32,H/32,W/32]</text>
+      <text class="card-subtitle" x="1025" y="930">encoder10 + baseline Mamba / Mod A-B Identity</text>
+      <rect class="mamba-chip" x="1025" y="942" width="130" height="23" rx="11"/>
+      <text class="pill-text" x="1040" y="958">BASELINE M SLOT</text>
+    </g>
+
+    <g id="decoder-cards">
+      <rect class="card output-card" x="1590" y="315" width="750" height="58" rx="14"/>
+      <text class="card-title" x="1615" y="340">head / raw region logits</text>
+      <text class="mono" x="1920" y="340">Conv3d 1&#xD7;1 &#xB7; [B,3,D,H,W] &#xB7; ET / TC / WT</text>
+      <text class="body-small" x="1920" y="359">no sigmoid inside MetaUNETR</text>
+
+      <rect class="card decoder-card" x="1590" y="400" width="750" height="82" rx="14"/>
+      <text class="card-title" x="1615" y="430">final / full-resolution</text>
+      <text class="card-subtitle" x="1615" y="454">UnetrUpBlock (CNN-only) &#xB7; skip0 &#xB7; C &#x2192; C</text>
+      <rect class="cnn-chip" x="2220" y="416" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="2241" y="432">CNN</text>
+
+      <rect class="card decoder-card" x="1590" y="500" width="750" height="82" rx="14"/>
+      <text class="card-title" x="1615" y="530">coarse[3] / 1/2</text>
+      <text class="card-subtitle" x="1615" y="554">up + skip1 &#xB7; C &#x2192; C &#xB7; Mamba refinement in Mod B</text>
+      <rect class="mamba-chip" x="2220" y="516" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="2238" y="532">M SLOT</text>
+
+      <rect class="card decoder-card" x="1590" y="600" width="750" height="82" rx="14"/>
+      <text class="card-title" x="1615" y="630">coarse[2] / 1/4</text>
+      <text class="card-subtitle" x="1615" y="654">up + skip2 &#xB7; 2C &#x2192; 2C &#xB7; Mamba refinement in Mod B</text>
+      <rect class="mamba-chip" x="2220" y="616" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="2238" y="632">M SLOT</text>
+
+      <rect class="card decoder-card" x="1590" y="700" width="750" height="82" rx="14"/>
+      <text class="card-title" x="1615" y="730">coarse[1] / 1/8</text>
+      <text class="card-subtitle" x="1615" y="754">up + skip3 &#xB7; 4C &#x2192; 4C &#xB7; Mamba refinement in Mod B</text>
+      <rect class="mamba-chip" x="2220" y="716" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="2238" y="732">M SLOT</text>
+
+      <rect class="card decoder-card" x="1590" y="800" width="750" height="82" rx="14"/>
+      <text class="card-title" x="1615" y="830">coarse[0] / 1/16</text>
+      <text class="card-subtitle" x="1615" y="854">up + skip4 &#xB7; 8C &#x2192; 8C &#xB7; Mamba refinement in Mod B</text>
+      <rect class="mamba-chip" x="2220" y="816" width="91" height="24" rx="12"/>
+      <text class="pill-text" x="2238" y="832">M SLOT</text>
+
+      <rect class="note-card" x="1590" y="930" width="750" height="80" rx="14"/>
+      <text class="body-bold" x="1615" y="958">decoder boundary</text>
+      <text class="body-small" x="1615" y="980">CnnDecoder uses MONAI UnetrUpBlock at all five steps.</text>
+      <text class="body-small" x="1615" y="997">Mod B replaces coarse[0..3] refinement; final remains CNN-only.</text>
+    </g>
+  </g>
+
+  <g id="token-contract-footer">
+    <rect class="footer-card" x="60" y="1140" width="760" height="260" rx="20"/>
+    <rect x="60" y="1140" width="8" height="260" rx="4" fill="#655a91"/>
+    <text class="panel-label" x="90" y="1175">MIXER TENSOR CONTRACT</text>
+    <text class="mono" x="90" y="1210">channels-last volume</text>
+    <text class="mono" x="360" y="1210">[B,D,H,W,C]</text>
+    <text class="mono-small" x="90" y="1240">depth</text>
+    <text class="mono-small" x="360" y="1240">[B&#xB7;H&#xB7;W, D, C]</text>
+    <text class="mono-small" x="90" y="1268">height</text>
+    <text class="mono-small" x="360" y="1268">[B&#xB7;D&#xB7;W, H, C]</text>
+    <text class="mono-small" x="90" y="1296">width</text>
+    <text class="mono-small" x="360" y="1296">[B&#xB7;D&#xB7;H, W, C]</text>
+    <line class="rule" x1="90" y1="1314" x2="790" y2="1314"/>
+    <text class="body-small" x="90" y="1340">CrossScan3D: three axis outputs sum (default) &#x2192; Linear(C,C)</text>
+    <text class="body-small" x="90" y="1363">TriCruciMamba3D: LayerNorm &#x2192; scan residual &#x2192; GELU MLP residual</text>
+
+    <rect class="footer-card" x="850" y="1140" width="760" height="260" rx="20"/>
+    <rect x="850" y="1140" width="8" height="260" rx="4" fill="#a66a22"/>
+    <text class="panel-label" x="880" y="1175">TRAINING CONTRACT</text>
+    <text class="body-bold" x="880" y="1210">BCEWithLogits &#xB7; AdamW (weight decay 1e-4) &#xB7; cosine / epoch</text>
+    <text class="mono-small" x="880" y="1240">phase 1  encoder_frozen</text>
+    <text class="body-small" x="1160" y="1240">20 ep &#xB7; encoder lr 0 &#xB7; decoder lr 1e-4</text>
+    <text class="mono-small" x="880" y="1268">phase 2  full_finetune</text>
+    <text class="body-small" x="1160" y="1268">80 ep &#xB7; encoder / decoder lr 1e-4</text>
+    <text class="mono-small" x="880" y="1296">monitor + checkpoint</text>
+    <text class="body-small" x="1160" y="1296">mean_dice &#x2191; &#xB7; validation every 5 epochs</text>
+    <line class="rule" x1="880" y1="1314" x2="1580" y2="1314"/>
+    <text class="body-small" x="880" y="1340">debug run: phase 1 + phase 2 = 1 + 1 epochs &#xB7; validate every epoch</text>
+    <text class="body-small" x="880" y="1363">All three experiment YAMLs share this fit contract.</text>
+
+    <rect class="footer-card" x="1640" y="1140" width="780" height="260" rx="20"/>
+    <rect x="1640" y="1140" width="8" height="260" rx="4" fill="#286d68"/>
+    <text class="panel-label" x="1670" y="1175">LEGEND / IMPLEMENTATION GUARDRAIL</text>
+    <rect class="cnn-chip" x="1670" y="1194" width="28" height="22" rx="5"/>
+    <text class="body-small" x="1710" y="1210">CNN adapter / up-block</text>
+    <rect class="mamba-chip" x="1890" y="1194" width="28" height="22" rx="11"/>
+    <text class="body-small" x="1930" y="1210">TriCruci Mamba slot</text>
+    <path class="skip-flow" d="M 2145 1205 H 2190" marker-end="url(#overview-arrow-skip)"/>
+    <text class="body-small" x="2205" y="1210">skip route</text>
+    <rect class="dark-callout" x="1670" y="1240" width="720" height="112" rx="14"/>
+    <text class="white-body" x="1692" y="1267">CPU uses local FallbackMamba.</text>
+    <text class="white-body" x="1692" y="1290">Explicit CUDA may materialize optional mamba_ssm.</text>
+    <text class="white-body" x="1692" y="1313">Project cross-scan block; no official Mamba-3 MIMO claim.</text>
+    <text class="white-body" x="1692" y="1336">Shapes shown here come from active src/ and tests, not archive code.</text>
+  </g>
+
+  <line class="rule" x1="70" y1="1430" x2="2410" y2="1430"/>
+  <text class="body-small" x="70" y="1455">hand-authored &#xB7; flat fills &#xB7; grayscale-safe borders &#xB7; verified against active MetaUNETR implementation</text>
+  <text class="body-small" x="2040" y="1455">no external assets or scripts</text>
+</svg>

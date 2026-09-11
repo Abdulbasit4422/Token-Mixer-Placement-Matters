@@ -1,0 +1,268 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2420" height="1390" viewBox="0 0 2420 1390" role="img" aria-labelledby="variants-title variants-desc">
+  <title id="variants-title">MetaUNETR variant comparison and verified Mamba placement</title>
+  <desc id="variants-desc">Three aligned rows compare the exact metaunetr_mamba, mod_a, and mod_b selectors. Every row shares the same four-channel input, encoder widths and depths, five skips, decoder scales, and three-channel raw-logit head. The baseline places TriCruciMamba3D in the bottleneck, Mod A places it in encoder stages, and Mod B places it in four coarse decoder refinement blocks while keeping the final decoder CNN-only. A lower panel shows CrossScan3D axis sequence shapes and the shared training contract. The figure explicitly labels the local CPU fallback and avoids any claim of official Mamba-3 MIMO behavior.</desc>
+  <style><![CDATA[
+    .canvas { fill: #f4f1eb; }
+    .panel { fill: #fffdf8; stroke: #c9d0cd; stroke-width: 2; }
+    .table-header { fill: #172329; stroke: #172329; stroke-width: 2; }
+    .variant-cell { fill: #f2e5ea; stroke: #c995a9; stroke-width: 2; }
+    .encoder-cell { fill: #f8fbfa; stroke: #9bbdb8; stroke-width: 2; }
+    .bottleneck-cell { fill: #ebe8f3; stroke: #aaa3c8; stroke-width: 2; }
+    .decoder-cell { fill: #fff9ef; stroke: #d2ad79; stroke-width: 2; }
+    .head-cell { fill: #e8e9e6; stroke: #aeb7b4; stroke-width: 2; }
+    .shared-strip { fill: #e6eef4; stroke: #99b4c7; stroke-width: 2; }
+    .scan-card { fill: #f8fbfa; stroke: #9bbdb8; stroke-width: 2; }
+    .training-card { fill: #fff9ef; stroke: #d2ad79; stroke-width: 2; }
+    .scan-box { fill: #e1efec; stroke: #8fbab4; stroke-width: 2; }
+    .active-mamba { fill: #f2e5ea; stroke: #96526d; stroke-width: 2; }
+    .active-cnn { fill: #e8f0e2; stroke: #4e753d; stroke-width: 2; }
+    .inactive { fill: #e8e9e6; stroke: #aeb7b4; stroke-width: 2; }
+    .mamba-chip { fill: #96526d; stroke: #96526d; }
+    .cnn-chip { fill: #4e753d; stroke: #4e753d; }
+    .identity-chip { fill: #667276; stroke: #667276; }
+    .dark-callout { fill: #172329; }
+    .title { fill: #172329; font-family: Georgia, 'Times New Roman', serif; font-size: 42px; font-weight: 700; letter-spacing: -0.8px; }
+    .subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 18px; }
+    .kicker { fill: #655a91; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2.4px; }
+    .panel-label { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 1.8px; }
+    .panel-note { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .header-cell { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; }
+    .row-title { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 16px; font-weight: 700; }
+    .row-subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; }
+    .body { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body-small { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .body-bold { fill: #1d2c31; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; }
+    .mono { fill: #1d2c31; font-family: 'Courier New', Courier, monospace; font-size: 12px; }
+    .mono-small { fill: #526064; font-family: 'Courier New', Courier, monospace; font-size: 11px; }
+    .pill-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; }
+    .tag-text { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+    .mini-label { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .white-body { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; }
+    .white-mono { fill: #fffdf8; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+    .rule { stroke: #b9c2bf; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #24343a; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .flow-soft { fill: none; stroke: #526064; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  ]]></style>
+  <defs>
+    <marker id="variants-arrow-dark" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#24343a"/>
+    </marker>
+    <marker id="variants-arrow-soft" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#526064"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" x="0" y="0" width="2420" height="1390"/>
+
+  <g id="header">
+    <text class="kicker" x="70" y="58">TOKEN MIXER / ABLATION MAP</text>
+    <text class="title" x="70" y="108">Same scaffold. One placement decision at a time.</text>
+    <text class="subtitle" x="70" y="141">build_metaunetr(cfg, variant) selects the slot; channel, skip, and logit contracts stay unchanged.</text>
+    <rect class="dark-callout" x="1700" y="36" width="650" height="108" rx="18"/>
+    <text class="pill-text" x="1730" y="64">SHARED ACROSS ALL ROWS</text>
+    <text class="white-mono" x="1730" y="94">[B,4,D,H,W]  &#x2192;  [B,3,D,H,W]</text>
+    <text class="white-body" x="1730" y="119">widths C / 2C / 4C / 8C &#xB7; five skips &#xB7; raw logits</text>
+  </g>
+
+  <g id="variant-table">
+    <rect class="panel" x="40" y="190" width="2340" height="780" rx="28"/>
+    <rect x="40" y="190" width="10" height="780" rx="5" fill="#655a91"/>
+    <text class="panel-label" x="75" y="228">01 / EXACT VARIANT ROWS</text>
+    <text class="panel-note" x="395" y="228">source-backed placement matrix for the three accepted selectors</text>
+    <text class="mono-small" x="1810" y="228">VALID_VARIANTS = (metaunetr_mamba, mod_a, mod_b)</text>
+
+    <rect class="table-header" x="80" y="280" width="330" height="54" rx="12"/>
+    <rect class="table-header" x="420" y="280" width="490" height="54" rx="12"/>
+    <rect class="table-header" x="920" y="280" width="330" height="54" rx="12"/>
+    <rect class="table-header" x="1260" y="280" width="610" height="54" rx="12"/>
+    <rect class="table-header" x="1880" y="280" width="460" height="54" rx="12"/>
+    <text class="header-cell" x="104" y="313">SELECTOR / PLACEMENT</text>
+    <text class="header-cell" x="444" y="313">ENCODER STAGES</text>
+    <text class="header-cell" x="944" y="313">BOTTLENECK</text>
+    <text class="header-cell" x="1284" y="313">DECODER / REFINEMENT</text>
+    <text class="header-cell" x="1904" y="313">HEAD / OUTPUT</text>
+
+    <!-- Baseline row: bottleneck mixer. -->
+    <rect class="variant-cell" x="80" y="350" width="330" height="160" rx="14"/>
+    <rect class="active-mamba" x="104" y="372" width="96" height="24" rx="12"/>
+    <text class="pill-text" x="120" y="388">BASELINE</text>
+    <text class="row-title" x="104" y="427">metaunetr_mamba</text>
+    <text class="row-subtitle" x="104" y="454">bottleneck mixer</text>
+    <text class="mono-small" x="104" y="482">stage_mixer = cnn</text>
+    <text class="mono-small" x="104" y="499">bottleneck_mixer = mamba</text>
+
+    <rect class="encoder-cell" x="420" y="350" width="490" height="160" rx="14"/>
+    <rect class="active-cnn" x="444" y="372" width="72" height="24" rx="12"/>
+    <text class="pill-text" x="466" y="388">CNN</text>
+    <text class="row-title" x="444" y="427">CNNTokenMixer</text>
+    <text class="row-subtitle" x="444" y="451">stages[0..3] &#xB7; depths [2,2,2,2]</text>
+    <text class="mono-small" x="444" y="476">widths C / 2C / 4C / 8C</text>
+    <text class="body-small" x="444" y="499">no Mamba in encoder</text>
+
+    <rect class="bottleneck-cell" x="920" y="350" width="330" height="160" rx="14"/>
+    <rect class="active-mamba" x="944" y="372" width="72" height="24" rx="12"/>
+    <text class="pill-text" x="966" y="388">MAMBA</text>
+    <text class="row-title" x="944" y="427">TriCruciMamba3D</text>
+    <text class="row-subtitle" x="944" y="451">one bottleneck block &#xB7; width 16C</text>
+    <text class="mono-small" x="944" y="476">@ [B,16C,D/32,H/32,W/32]</text>
+    <text class="body-small" x="944" y="499">encoder10 precedes slot</text>
+
+    <rect class="decoder-cell" x="1260" y="350" width="610" height="160" rx="14"/>
+    <rect class="active-cnn" x="1284" y="372" width="72" height="24" rx="12"/>
+    <text class="pill-text" x="1306" y="388">CNN</text>
+    <text class="row-title" x="1284" y="427">CnnDecoder</text>
+    <text class="row-subtitle" x="1284" y="451">MONAI UnetrUpBlock &#xD7; 5 &#xB7; skips 4 &#x2192; 0</text>
+    <text class="body-small" x="1284" y="476">coarse path and final path remain CNN</text>
+    <text class="body-small" x="1284" y="499">no decoder Mamba</text>
+
+    <rect class="head-cell" x="1880" y="350" width="460" height="160" rx="14"/>
+    <rect class="inactive" x="1904" y="372" width="92" height="24" rx="12"/>
+    <text class="pill-text" x="1922" y="388">SHARED</text>
+    <text class="row-title" x="1904" y="427">Conv3d 1&#xD7;1 head</text>
+    <text class="mono-small" x="1904" y="453">[B,3,D,H,W]</text>
+    <text class="body-small" x="1904" y="478">raw logits &#xB7; ET / TC / WT</text>
+    <text class="body-small" x="1904" y="501">same output contract</text>
+
+    <!-- Mod A row: encoder-stage mixer. -->
+    <rect class="variant-cell" x="80" y="525" width="330" height="160" rx="14"/>
+    <rect class="active-mamba" x="104" y="547" width="70" height="24" rx="12"/>
+    <text class="pill-text" x="126" y="563">MOD A</text>
+    <text class="row-title" x="104" y="602">mod_a</text>
+    <text class="row-subtitle" x="104" y="629">encoder-stage mixer</text>
+    <text class="mono-small" x="104" y="657">stage_mixer = mamba</text>
+    <text class="mono-small" x="104" y="674">bottleneck_mixer = cnn</text>
+
+    <rect class="encoder-cell" x="420" y="525" width="490" height="160" rx="14"/>
+    <rect class="active-mamba" x="444" y="547" width="72" height="24" rx="12"/>
+    <text class="pill-text" x="466" y="563">MAMBA</text>
+    <text class="row-title" x="444" y="602">TriCruciMamba3D</text>
+    <text class="row-subtitle" x="444" y="626">inside stages[0..3] &#xB7; depth 2 each</text>
+    <text class="mono-small" x="444" y="651">widths C / 2C / 4C / 8C</text>
+    <text class="body-small" x="444" y="674">four stage families carry slots</text>
+
+    <rect class="bottleneck-cell" x="920" y="525" width="330" height="160" rx="14"/>
+    <rect class="inactive" x="944" y="547" width="92" height="24" rx="12"/>
+    <text class="pill-text" x="962" y="563">IDENTITY</text>
+    <text class="row-title" x="944" y="602">no bottleneck Mamba</text>
+    <text class="row-subtitle" x="944" y="626">encoder10 &#x2192; decoder</text>
+    <text class="mono-small" x="944" y="651">[B,16C,D/32,H/32,W/32]</text>
+    <text class="body-small" x="944" y="674">active module: nn.Identity()</text>
+
+    <rect class="decoder-cell" x="1260" y="525" width="610" height="160" rx="14"/>
+    <rect class="active-cnn" x="1284" y="547" width="72" height="24" rx="12"/>
+    <text class="pill-text" x="1306" y="563">CNN</text>
+    <text class="row-title" x="1284" y="602">CnnDecoder</text>
+    <text class="row-subtitle" x="1284" y="626">MONAI UnetrUpBlock &#xD7; 5 &#xB7; skips 4 &#x2192; 0</text>
+    <text class="body-small" x="1284" y="651">coarse path and final path remain CNN</text>
+    <text class="body-small" x="1284" y="674">no decoder Mamba</text>
+
+    <rect class="head-cell" x="1880" y="525" width="460" height="160" rx="14"/>
+    <rect class="inactive" x="1904" y="547" width="92" height="24" rx="12"/>
+    <text class="pill-text" x="1922" y="563">SHARED</text>
+    <text class="row-title" x="1904" y="602">Conv3d 1&#xD7;1 head</text>
+    <text class="mono-small" x="1904" y="628">[B,3,D,H,W]</text>
+    <text class="body-small" x="1904" y="653">raw logits &#xB7; ET / TC / WT</text>
+    <text class="body-small" x="1904" y="676">same output contract</text>
+
+    <!-- Mod B row: coarse decoder refinement mixer. -->
+    <rect class="variant-cell" x="80" y="700" width="330" height="160" rx="14"/>
+    <rect class="active-mamba" x="104" y="722" width="70" height="24" rx="12"/>
+    <text class="pill-text" x="126" y="738">MOD B</text>
+    <text class="row-title" x="104" y="777">mod_b</text>
+    <text class="row-subtitle" x="104" y="804">coarse decoder refinement mixer</text>
+    <text class="mono-small" x="104" y="832">stage_mixer = cnn</text>
+    <text class="mono-small" x="104" y="849">decoder = mamba</text>
+
+    <rect class="encoder-cell" x="420" y="700" width="490" height="160" rx="14"/>
+    <rect class="active-cnn" x="444" y="722" width="72" height="24" rx="12"/>
+    <text class="pill-text" x="466" y="738">CNN</text>
+    <text class="row-title" x="444" y="777">CNNTokenMixer</text>
+    <text class="row-subtitle" x="444" y="801">stages[0..3] &#xB7; depths [2,2,2,2]</text>
+    <text class="mono-small" x="444" y="826">widths C / 2C / 4C / 8C</text>
+    <text class="body-small" x="444" y="849">no Mamba in encoder</text>
+
+    <rect class="bottleneck-cell" x="920" y="700" width="330" height="160" rx="14"/>
+    <rect class="inactive" x="944" y="722" width="92" height="24" rx="12"/>
+    <text class="pill-text" x="962" y="738">IDENTITY</text>
+    <text class="row-title" x="944" y="777">no bottleneck Mamba</text>
+    <text class="row-subtitle" x="944" y="801">encoder10 &#x2192; decoder</text>
+    <text class="mono-small" x="944" y="826">[B,16C,D/32,H/32,W/32]</text>
+    <text class="body-small" x="944" y="849">active module: nn.Identity()</text>
+
+    <rect class="decoder-cell" x="1260" y="700" width="610" height="160" rx="14"/>
+    <rect class="active-mamba" x="1284" y="722" width="72" height="24" rx="12"/>
+    <text class="pill-text" x="1306" y="738">MAMBA</text>
+    <text class="row-title" x="1284" y="777">MambaDecoder3D</text>
+    <text class="row-subtitle" x="1284" y="801">coarse[0..3] after up + skip fusion</text>
+    <text class="body-small" x="1284" y="826">merge LayerNorm + Linear &#x2192; TriCruciMamba3D</text>
+    <text class="body-small" x="1284" y="849">final UnetrUpBlock stays CNN-only</text>
+
+    <rect class="head-cell" x="1880" y="700" width="460" height="160" rx="14"/>
+    <rect class="inactive" x="1904" y="722" width="92" height="24" rx="12"/>
+    <text class="pill-text" x="1922" y="738">SHARED</text>
+    <text class="row-title" x="1904" y="777">Conv3d 1&#xD7;1 head</text>
+    <text class="mono-small" x="1904" y="803">[B,3,D,H,W]</text>
+    <text class="body-small" x="1904" y="828">raw logits &#xB7; ET / TC / WT</text>
+    <text class="body-small" x="1904" y="851">same output contract</text>
+
+    <rect class="shared-strip" x="80" y="884" width="2260" height="54" rx="14"/>
+    <text class="body-bold" x="104" y="917">SHARED SHAPE</text>
+    <text class="mono-small" x="300" y="917">stem &#xB7; encoder adapters &#xB7; five skips &#xB7; decoder scales &#xB7; Conv3d 1&#xD7;1 head</text>
+    <text class="mono-small" x="1450" y="917">all rows: [B,4,D,H,W] &#x2192; [B,3,D,H,W]</text>
+  </g>
+
+  <g id="scan-and-training">
+    <rect class="scan-card" x="60" y="1000" width="1060" height="300" rx="20"/>
+    <rect x="60" y="1000" width="8" height="300" rx="4" fill="#286d68"/>
+    <text class="panel-label" x="90" y="1037">MIXER CONTRACT / VERIFIED SEQUENCES</text>
+    <rect class="scan-box" x="90" y="1060" width="260" height="64" rx="12"/>
+    <text class="body-bold" x="108" y="1085">CrossScan3D input</text>
+    <text class="mono-small" x="108" y="1107">[B,D,H,W,C]</text>
+    <path class="flow-soft" d="M 350 1092 H 405" marker-end="url(#variants-arrow-soft)"/>
+    <path class="flow-soft" d="M 405 1092 V 1082 H 440" marker-end="url(#variants-arrow-soft)"/>
+    <path class="flow-soft" d="M 405 1092 V 1137 H 440" marker-end="url(#variants-arrow-soft)"/>
+    <path class="flow-soft" d="M 405 1092 V 1192 H 440" marker-end="url(#variants-arrow-soft)"/>
+    <rect class="scan-box" x="440" y="1060" width="300" height="44" rx="10"/>
+    <text class="mono-small" x="456" y="1087">depth  [B&#xB7;H&#xB7;W, D, C]</text>
+    <rect class="scan-box" x="440" y="1115" width="300" height="44" rx="10"/>
+    <text class="mono-small" x="456" y="1142">height [B&#xB7;D&#xB7;W, H, C]</text>
+    <rect class="scan-box" x="440" y="1170" width="300" height="44" rx="10"/>
+    <text class="mono-small" x="456" y="1197">width  [B&#xB7;D&#xB7;H, W, C]</text>
+    <path class="flow-soft" d="M 740 1137 H 780" marker-end="url(#variants-arrow-soft)"/>
+    <rect class="active-mamba" x="780" y="1089" width="300" height="96" rx="12"/>
+    <text class="body-bold" x="800" y="1118">three Mamba wrappers</text>
+    <text class="body-small" x="800" y="1141">axis_fusion = sum (active)</text>
+    <text class="mono-small" x="800" y="1164">sum &#x2192; Linear(C,C)</text>
+    <text class="mono-small" x="800" y="1180">&#x2192; [B,D,H,W,C]</text>
+    <text class="body-small" x="90" y="1250">TriCruciMamba3D adds LayerNorm, scan residual, GELU MLP residual.</text>
+    <text class="body-small" x="90" y="1274">Mamba inputs stay [B,L,C]; local wrapper output preserves sequence shape.</text>
+
+    <rect class="training-card" x="1150" y="1000" width="1270" height="300" rx="20"/>
+    <rect x="1150" y="1000" width="8" height="300" rx="4" fill="#a66a22"/>
+    <text class="panel-label" x="1180" y="1037">SHARED EXPERIMENT CONTRACT</text>
+    <text class="mono-small" x="1180" y="1073">loss</text>
+    <text class="body-bold" x="1435" y="1073">binary_cross_entropy_with_logits</text>
+    <text class="mono-small" x="1180" y="1101">phase 1</text>
+    <text class="body-small" x="1435" y="1101">encoder_frozen &#xB7; 20 ep &#xB7; encoder lr 0 &#xB7; decoder lr 1e-4</text>
+    <text class="mono-small" x="1180" y="1129">phase 2</text>
+    <text class="body-small" x="1435" y="1129">full_finetune &#xB7; 80 ep &#xB7; encoder / decoder lr 1e-4</text>
+    <text class="mono-small" x="1180" y="1157">monitor</text>
+    <text class="body-small" x="1435" y="1157">mean_dice &#x2191; &#xB7; checkpoint_metric = mean_dice &#xB7; validation every 5</text>
+    <text class="mono-small" x="1180" y="1185">debug</text>
+    <text class="body-small" x="1435" y="1185">phase 1 + phase 2 = 1 + 1 epochs &#xB7; validation every 1</text>
+    <line class="rule" x1="1180" y1="1203" x2="2390" y2="1203"/>
+    <text class="mini-label" x="1180" y="1227">LEGEND</text>
+    <rect class="cnn-chip" x="1240" y="1214" width="28" height="22" rx="5"/>
+    <text class="body-small" x="1280" y="1230">CNN / adapter</text>
+    <rect class="mamba-chip" x="1405" y="1214" width="28" height="22" rx="11"/>
+    <text class="body-small" x="1445" y="1230">TriCruci Mamba slot</text>
+    <rect class="identity-chip" x="1620" y="1214" width="28" height="22" rx="5"/>
+    <text class="body-small" x="1660" y="1230">Identity / no slot</text>
+    <rect class="dark-callout" x="1180" y="1248" width="1210" height="38" rx="10"/>
+    <text class="white-body" x="1200" y="1272">CPU &#x2192; FallbackMamba; explicit CUDA may use mamba_ssm. Project block, not official Mamba-3 MIMO behavior.</text>
+  </g>
+
+  <line class="rule" x1="70" y1="1330" x2="2350" y2="1330"/>
+  <text class="body-small" x="70" y="1355">hand-authored &#xB7; aligned rows &#xB7; flat fills &#xB7; grayscale-safe color-plus-shape legend &#xB7; no external assets or scripts</text>
+  <text class="body-small" x="1970" y="1355">active src/ + configs/ + tests/ only</text>
+</svg>
