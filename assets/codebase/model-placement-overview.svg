@@ -157,9 +157,9 @@
 
       <rect class="card stage-card" x="120" y="900" width="760" height="82" rx="14"/>
       <text class="card-title" x="145" y="930">stage[3] + downsample / 1/32</text>
-      <text class="card-subtitle" x="145" y="954">depth 2 &#xB7; 8C &#x2192; 16C &#xB7; encoder10</text>
-      <rect class="identity-chip" x="765" y="916" width="91" height="24" rx="12"/>
-      <text class="pill-text" x="782" y="932">BRIDGE</text>
+      <text class="card-subtitle" x="145" y="954">depth 2 &#xB7; 8C &#x2192; 16C &#xB7; encoder10 &#xB7; Mod A Mamba slot</text>
+      <rect class="mamba-chip" x="755" y="916" width="101" height="24" rx="12"/>
+      <text class="pill-text" x="768" y="932">MOD A MAMBA</text>
     </g>
 
     <g id="bottleneck-card">
