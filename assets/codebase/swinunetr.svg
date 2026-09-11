@@ -1,0 +1,348 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1320" viewBox="0 0 2400 1320" role="img" aria-labelledby="swinunetr-title swinunetr-desc">
+  <title id="swinunetr-title">SwinUNETR adapter and hierarchical segmentation path</title>
+  <desc id="swinunetr-desc">A source-verified, grayscale-safe architecture map for the repository's lazy MONAI SwinUNETR adapter. A four-channel three-dimensional MRI tensor enters the adapter, crosses a public swinViT encoder boundary, follows four hierarchical Swin stages into a decoder with conceptual skip fusion, and exits as raw three-region logits in ET, TC, WT order. Lower notes show the optional transform adapter, training contract, shape and window settings, and source anchors. Internal MONAI block names are intentionally not asserted.</desc>
+
+  <style><![CDATA[
+    .canvas { fill: #f4f0e8; }
+    .panel { fill: #fffdf8; stroke: #c8d0cd; stroke-width: 2; }
+    .network { fill: #fbfaf6; stroke: #b9c3c0; stroke-width: 2; }
+    .input { fill: #e2efec; stroke: #286d68; stroke-width: 2; }
+    .adapter { fill: #f8fbfa; stroke: #286d68; stroke-width: 2.5; stroke-dasharray: 12 8; }
+    .encoder { fill: #f3faf8; stroke: #4b8a83; stroke-width: 2; stroke-dasharray: 8 7; }
+    .decoder { fill: #fbf7ef; stroke: #a66a22; stroke-width: 2; stroke-dasharray: 8 7; }
+    .output { fill: #eeeaf4; stroke: #66598f; stroke-width: 2; }
+    .stage-a { fill: #e5f1ef; stroke: #286d68; stroke-width: 2; }
+    .stage-b { fill: #e8eef4; stroke: #3d6d8c; stroke-width: 2; }
+    .stage-c { fill: #eee9f4; stroke: #66598f; stroke-width: 2; }
+    .stage-d { fill: #f4eadb; stroke: #a66a22; stroke-width: 2; }
+    .decode { fill: #f8f0e3; stroke: #a66a22; stroke-width: 2; }
+    .bridge { fill: #1d2b30; stroke: #1d2b30; stroke-width: 2; }
+    .note-teal { fill: #eef7f5; stroke: #9bc2bc; stroke-width: 1.5; }
+    .note-ochre { fill: #fff8eb; stroke: #d0a264; stroke-width: 1.5; }
+    .note-plum { fill: #f7f3fa; stroke: #b3a8c8; stroke-width: 1.5; }
+    .note-blue { fill: #f2f7fa; stroke: #a2bccd; stroke-width: 1.5; }
+    .dark { fill: #1b292e; }
+    .title { fill: #172329; font-family: Georgia, 'Times New Roman', serif; font-size: 44px; font-weight: 700; letter-spacing: -1px; }
+    .subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 18px; }
+    .kicker { fill: #286d68; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2.6px; }
+    .section { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1.6px; }
+    .section-light { fill: #d8e6e4; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1.6px; }
+    .card-title { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 22px; font-weight: 700; }
+    .card-subtitle { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .body { fill: #28373d; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 15px; }
+    .body-small { fill: #526064; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 13px; }
+    .body-tiny { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; }
+    .body-tiny-white { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; }
+    .body-bold { fill: #1d2c31; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 700; }
+    .body-white { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; }
+    .mono { fill: #1d2c31; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+    .mono-small { fill: #526064; font-family: 'Courier New', Courier, monospace; font-size: 12px; }
+    .mono-white { fill: #fffdf8; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    .pill { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+    .pill-dark { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .9px; }
+    .tag { fill: #fffdf8; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .7px; }
+    .boundary-label { fill: #286d68; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1.2px; }
+    .boundary-label-ochre { fill: #8a571f; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1.2px; }
+    .stage-title { fill: #172329; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 15px; font-weight: 700; }
+    .stage-note { fill: #526064; font-family: 'Courier New', Courier, monospace; font-size: 12px; }
+    .stage-kind { fill: #667276; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .8px; }
+    .skip-label { fill: #667276; font-family: 'Courier New', Courier, monospace; font-size: 10px; }
+    .rule { stroke: #c0c9c5; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #24343a; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .flow-soft { fill: none; stroke: #526064; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .skip { fill: none; stroke: #4b8a83; stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 7 7; }
+    .api { fill: none; stroke: #286d68; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 5 6; }
+    .dot { fill: #24343a; }
+    .dot-teal { fill: #286d68; }
+    .dot-ochre { fill: #a66a22; }
+  ]]></style>
+
+  <defs>
+    <marker id="arrow-dark-swin" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#24343a"/>
+    </marker>
+    <marker id="arrow-teal-swin" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#4b8a83"/>
+    </marker>
+    <marker id="arrow-ochre-swin" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#a66a22"/>
+    </marker>
+  </defs>
+
+  <rect class="canvas" x="0" y="0" width="2400" height="1320"/>
+
+  <g id="header">
+    <text class="kicker" x="68" y="58">TOKEN MIXER / MODEL CONTRACT</text>
+    <text class="title" x="68" y="112">SwinUNETR / placement map</text>
+    <text class="subtitle" x="68" y="146">A canonical 3-D path: keep MONAI internals inside one adapter, expose one encoder boundary, and return raw region logits.</text>
+
+    <rect class="dark" x="1710" y="40" width="640" height="112" rx="20"/>
+    <text class="section-light" x="1736" y="68">ACTIVE CONTRACT</text>
+    <text class="mono-white" x="1736" y="99">[B, 4, D, H, W]  →  [B, 3, D, H, W]</text>
+    <text class="body-white" x="1736" y="128">raw logits  ·  ET / TC / WT  ·  no activation or reorder</text>
+  </g>
+
+  <g id="input-card">
+    <rect class="input" x="48" y="252" width="280" height="560" rx="24"/>
+    <rect x="48" y="252" width="8" height="560" rx="4" fill="#286d68"/>
+    <rect x="70" y="276" width="174" height="25" rx="12" fill="#286d68"/>
+    <text class="pill" x="83" y="293">01 / INPUT CONTRACT</text>
+    <text class="card-title" x="70" y="333">4-channel MRI</text>
+    <text class="card-subtitle" x="70" y="356">preprocessed volume</text>
+
+    <g aria-label="four modality channels">
+      <rect x="82" y="391" width="174" height="72" rx="13" fill="#d2e7e3" stroke="#79aaa3"/>
+      <rect x="74" y="399" width="174" height="72" rx="13" fill="#d9eae7" stroke="#79aaa3"/>
+      <rect x="66" y="407" width="174" height="72" rx="13" fill="#e1efec" stroke="#79aaa3"/>
+      <rect x="58" y="415" width="174" height="72" rx="13" fill="#f8fcfb" stroke="#4b8a83" stroke-width="2"/>
+      <text class="body-bold" x="78" y="438">t1n</text>
+      <text class="body-bold" x="78" y="458">t1c</text>
+      <text class="body-bold" x="135" y="438">t2w</text>
+      <text class="body-bold" x="135" y="458">t2f</text>
+      <text class="body-tiny" x="188" y="438">× 4</text>
+      <text class="body-tiny" x="188" y="458">fixed order</text>
+    </g>
+
+    <rect class="panel" x="70" y="510" width="236" height="66" rx="12"/>
+    <text class="mono" x="84" y="537">image  [4, D, H, W]</text>
+    <text class="mono-small" x="84" y="558">batch → [B, 4, D, H, W]</text>
+    <circle class="dot-teal" cx="78" cy="603" r="3"/>
+    <text class="body" x="90" y="608">normalize · pad/crop · augment</text>
+    <circle class="dot-teal" cx="78" cy="631" r="3"/>
+    <text class="body" x="90" y="636">three spatial axes only</text>
+    <circle class="dot-teal" cx="78" cy="659" r="3"/>
+    <text class="body" x="90" y="664">spatial_dims = 3</text>
+    <line class="rule" x1="70" y1="688" x2="306" y2="688"/>
+    <text class="body-small" x="70" y="713">canonical modalities</text>
+    <rect x="70" y="731" width="236" height="36" rx="18" fill="#286d68"/>
+    <text class="tag" x="87" y="754">4 CHANNELS · ORDER PRESERVED</text>
+    <text class="body-tiny" x="70" y="792">source: configs/data/brats.yaml</text>
+  </g>
+
+  <path class="flow" d="M 328 532 H 360" marker-end="url(#arrow-dark-swin)"/>
+  <text class="body-tiny" x="329" y="515">forward</text>
+
+  <g id="adapter-boundary">
+    <rect class="adapter" x="360" y="205" width="1600" height="780" rx="30"/>
+    <rect x="360" y="205" width="9" height="780" rx="4" fill="#286d68"/>
+    <rect x="394" y="232" width="210" height="25" rx="12" fill="#286d68"/>
+    <text class="pill" x="408" y="249">02 / ADAPTER BOUNDARY</text>
+    <text class="card-title" x="394" y="282">SwinUNETRAdapter</text>
+    <text class="card-subtitle" x="394" y="305">build_swinunetr(cfg) → one MONAI network</text>
+
+    <rect class="note-teal" x="1370" y="228" width="164" height="34" rx="17"/>
+    <text class="body-tiny" x="1390" y="250">MONAI lazy import</text>
+    <rect class="note-blue" x="1546" y="228" width="190" height="34" rx="17"/>
+    <text class="body-tiny" x="1565" y="250">signature-aware options</text>
+    <rect class="note-ochre" x="1748" y="228" width="184" height="34" rx="17"/>
+    <text class="body-tiny" x="1767" y="250">shape contract checked</text>
+
+    <rect class="network" x="390" y="332" width="1540" height="610" rx="23"/>
+    <text class="section" x="420" y="364">MONAI SWINUNETR · CONCEPTUAL INTERNAL ROUTE</text>
+    <text class="body-tiny" x="1350" y="364">solid arrows = forward path  ·  dashed = skip/API boundary</text>
+
+    <rect class="encoder" x="420" y="390" width="760" height="512" rx="22"/>
+    <text class="boundary-label" x="445" y="423">PUBLIC ENCODER BOUNDARY</text>
+    <text class="mono-small" x="445" y="444">adapter.encoder = network.swinViT</text>
+    <rect class="note-teal" x="445" y="456" width="84" height="24" rx="12"/>
+    <text class="body-tiny" x="461" y="472">PATCH 2</text>
+    <rect class="note-teal" x="540" y="456" width="96" height="24" rx="12"/>
+    <text class="body-tiny" x="557" y="472">WINDOW 7</text>
+    <rect class="note-teal" x="647" y="456" width="105" height="24" rx="12"/>
+    <text class="body-tiny" x="664" y="472">FEATURE 48</text>
+    <text class="body-tiny" x="790" y="472">config defaults</text>
+
+    <rect class="decoder" x="1220" y="390" width="680" height="512" rx="22"/>
+    <text class="boundary-label-ochre" x="1245" y="423">DECODER + SKIP FUSION</text>
+    <text class="mono-small" x="1245" y="444">internal MONAI path · names not public API</text>
+    <rect class="note-ochre" x="1245" y="456" width="146" height="24" rx="12"/>
+    <text class="body-tiny" x="1262" y="472">SKIP FEATURES</text>
+    <text class="body-tiny" x="1410" y="472">decode toward full volume</text>
+
+    <path class="skip" d="M 790 533 H 1460" marker-end="url(#arrow-teal-swin)"/>
+    <path class="skip" d="M 790 623 H 1460" marker-end="url(#arrow-teal-swin)"/>
+    <path class="skip" d="M 790 713 H 1460" marker-end="url(#arrow-teal-swin)"/>
+    <path class="skip" d="M 790 803 H 1460" marker-end="url(#arrow-teal-swin)"/>
+    <text class="skip-label" x="1030" y="524">skip 1</text>
+    <text class="skip-label" x="1030" y="614">skip 2</text>
+    <text class="skip-label" x="1030" y="704">skip 3</text>
+    <text class="skip-label" x="1030" y="794">skip 4</text>
+
+    <path class="flow" d="M 390 533 H 500" marker-end="url(#arrow-dark-swin)"/>
+    <path class="flow" d="M 645 566 V 590" marker-end="url(#arrow-dark-swin)"/>
+    <path class="flow" d="M 645 656 V 680" marker-end="url(#arrow-dark-swin)"/>
+    <path class="flow" d="M 645 746 V 770" marker-end="url(#arrow-dark-swin)"/>
+    <path class="flow" d="M 645 836 V 857 H 1040" marker-end="url(#arrow-dark-swin)"/>
+    <path class="flow" d="M 1270 857 H 1640 V 836" marker-end="url(#arrow-ochre-swin)"/>
+    <path class="flow" d="M 1640 770 V 746" marker-end="url(#arrow-ochre-swin)"/>
+    <path class="flow" d="M 1640 680 V 656" marker-end="url(#arrow-ochre-swin)"/>
+    <path class="flow" d="M 1640 590 V 566" marker-end="url(#arrow-ochre-swin)"/>
+    <path class="flow" d="M 1820 533 H 1960" marker-end="url(#arrow-dark-swin)"/>
+
+    <g id="encoder-stages">
+      <g>
+        <rect class="stage-a" x="500" y="500" width="290" height="66" rx="14"/>
+        <rect x="516" y="516" width="34" height="34" rx="8" fill="#286d68"/>
+        <path d="M 524 526 H 542 M 524 534 H 542 M 524 542 H 542 M 528 522 V 546 M 538 522 V 546" stroke="#fffdf8" stroke-width="1.5" opacity=".9"/>
+        <text class="stage-title" x="565" y="527">S1 · SWIN STAGE</text>
+        <text class="stage-note" x="565" y="548">depth 2  ·  heads 3</text>
+        <text class="stage-kind" x="711" y="548">HIERARCHICAL</text>
+      </g>
+      <g>
+        <rect class="stage-b" x="500" y="590" width="290" height="66" rx="14"/>
+        <rect x="516" y="606" width="34" height="34" rx="8" fill="#3d6d8c"/>
+        <path d="M 524 616 H 542 M 524 624 H 542 M 524 632 H 542 M 528 612 V 636 M 538 612 V 636" stroke="#fffdf8" stroke-width="1.5" opacity=".9"/>
+        <text class="stage-title" x="565" y="617">S2 · SWIN STAGE</text>
+        <text class="stage-note" x="565" y="638">depth 2  ·  heads 6</text>
+        <text class="stage-kind" x="711" y="638">HIERARCHICAL</text>
+      </g>
+      <g>
+        <rect class="stage-c" x="500" y="680" width="290" height="66" rx="14"/>
+        <rect x="516" y="696" width="34" height="34" rx="8" fill="#66598f"/>
+        <path d="M 524 706 H 542 M 524 714 H 542 M 524 722 H 542 M 528 702 V 726 M 538 702 V 726" stroke="#fffdf8" stroke-width="1.5" opacity=".9"/>
+        <text class="stage-title" x="565" y="707">S3 · SWIN STAGE</text>
+        <text class="stage-note" x="565" y="728">depth 2  ·  heads 12</text>
+        <text class="stage-kind" x="711" y="728">HIERARCHICAL</text>
+      </g>
+      <g>
+        <rect class="stage-d" x="500" y="770" width="290" height="66" rx="14"/>
+        <rect x="516" y="786" width="34" height="34" rx="8" fill="#a66a22"/>
+        <path d="M 524 796 H 542 M 524 804 H 542 M 524 812 H 542 M 528 792 V 816 M 538 792 V 816" stroke="#fffdf8" stroke-width="1.5" opacity=".9"/>
+        <text class="stage-title" x="565" y="797">S4 · SWIN STAGE</text>
+        <text class="stage-note" x="565" y="818">depth 2  ·  heads 24</text>
+        <text class="stage-kind" x="711" y="818">HIERARCHICAL</text>
+      </g>
+    </g>
+
+    <g id="bridge">
+      <rect class="bridge" x="1040" y="832" width="230" height="50" rx="14"/>
+      <text class="pill-dark" x="1060" y="853">BRIDGE FEATURE</text>
+      <text class="body-white" x="1060" y="872">latent context</text>
+    </g>
+
+    <g id="decoder-stages">
+      <g>
+        <rect class="decode" x="1460" y="500" width="360" height="66" rx="14"/>
+        <rect x="1476" y="516" width="34" height="34" rx="8" fill="#a66a22"/>
+        <path d="M 1484 526 H 1502 M 1484 534 H 1502 M 1484 542 H 1502 M 1488 522 V 546 M 1498 522 V 546" stroke="#fffdf8" stroke-width="1.5" opacity=".9"/>
+        <text class="stage-title" x="1525" y="527">D1 · DECODER BLOCK</text>
+        <text class="stage-note" x="1525" y="548">upsample  +  skip 1</text>
+        <text class="stage-kind" x="1722" y="548">FULLER SCALE</text>
+      </g>
+      <g>
+        <rect class="decode" x="1460" y="590" width="360" height="66" rx="14"/>
+        <rect x="1476" y="606" width="34" height="34" rx="8" fill="#a66a22"/>
+        <path d="M 1484 616 H 1502 M 1484 624 H 1502 M 1484 632 H 1502 M 1488 612 V 636 M 1498 612 V 636" stroke="#fffdf8" stroke-width="1.5" opacity=".9"/>
+        <text class="stage-title" x="1525" y="617">D2 · DECODER BLOCK</text>
+        <text class="stage-note" x="1525" y="638">upsample  +  skip 2</text>
+        <text class="stage-kind" x="1722" y="638">FULLER SCALE</text>
+      </g>
+      <g>
+        <rect class="decode" x="1460" y="680" width="360" height="66" rx="14"/>
+        <rect x="1476" y="696" width="34" height="34" rx="8" fill="#a66a22"/>
+        <path d="M 1484 706 H 1502 M 1484 714 H 1502 M 1484 722 H 1502 M 1488 702 V 726 M 1498 702 V 726" stroke="#fffdf8" stroke-width="1.5" opacity=".9"/>
+        <text class="stage-title" x="1525" y="707">D3 · DECODER BLOCK</text>
+        <text class="stage-note" x="1525" y="728">upsample  +  skip 3</text>
+        <text class="stage-kind" x="1722" y="728">FULLER SCALE</text>
+      </g>
+      <g>
+        <rect class="decode" x="1460" y="770" width="360" height="66" rx="14"/>
+        <rect x="1476" y="786" width="34" height="34" rx="8" fill="#a66a22"/>
+        <path d="M 1484 796 H 1502 M 1484 804 H 1502 M 1484 812 H 1502 M 1488 792 V 816 M 1498 792 V 816" stroke="#fffdf8" stroke-width="1.5" opacity=".9"/>
+        <text class="stage-title" x="1525" y="797">D4 · DECODER BLOCK</text>
+        <text class="stage-note" x="1525" y="818">upsample  +  skip 4</text>
+        <text class="stage-kind" x="1722" y="818">FULLER SCALE</text>
+      </g>
+    </g>
+
+    <rect class="dark" x="420" y="916" width="1470" height="26" rx="13"/>
+    <text class="body-tiny-white" x="440" y="934">Internal stage names are intentionally omitted: adapter depends on network.swinViT, nn.Module forward, and the verified output shape—not private MONAI paths.</text>
+  </g>
+
+  <path class="flow" d="M 1960 532 H 1990" marker-end="url(#arrow-dark-swin)"/>
+  <text class="body-tiny" x="1962" y="515">logits</text>
+
+  <g id="output-card">
+    <rect class="output" x="1990" y="252" width="360" height="560" rx="24"/>
+    <rect x="1990" y="252" width="8" height="560" rx="4" fill="#66598f"/>
+    <rect x="2014" y="276" width="190" height="25" rx="12" fill="#66598f"/>
+    <text class="pill" x="2027" y="293">03 / OUTPUT CONTRACT</text>
+    <text class="card-title" x="2014" y="333">region logits</text>
+    <text class="card-subtitle" x="2014" y="356">forward(inputs) returns Tensor</text>
+
+    <rect class="dark" x="2014" y="391" width="312" height="102" rx="15"/>
+    <text class="mono-white" x="2034" y="425">[B, 3, D, H, W]</text>
+    <rect x="2034" y="448" width="74" height="25" rx="12" fill="#d9cde3"/>
+    <rect x="2118" y="448" width="74" height="25" rx="12" fill="#c7d9e6"/>
+    <rect x="2202" y="448" width="74" height="25" rx="12" fill="#d9e7d5"/>
+    <text class="body-bold" x="2053" y="466">ET</text>
+    <text class="body-bold" x="2137" y="466">TC</text>
+    <text class="body-bold" x="2221" y="466">WT</text>
+    <circle class="dot" cx="2022" cy="531" r="3"/>
+    <text class="body" x="2034" y="536">raw logits</text>
+    <circle class="dot" cx="2022" cy="559" r="3"/>
+    <text class="body" x="2034" y="564">no activation applied</text>
+    <circle class="dot" cx="2022" cy="587" r="3"/>
+    <text class="body" x="2034" y="592">no threshold or channel reorder</text>
+    <line class="rule" x1="2014" y1="619" x2="2326" y2="619"/>
+    <text class="body-small" x="2014" y="646">adapter verifies exact shape</text>
+    <rect x="2014" y="669" width="312" height="38" rx="19" fill="#66598f"/>
+    <text class="tag" x="2032" y="693">LOSS RECEIVES LOGITS DOWNSTREAM</text>
+    <text class="body-tiny" x="2014" y="742">canonical region order</text>
+    <text class="mono-small" x="2014" y="764">REGION_NAMES = (ET, TC, WT)</text>
+    <text class="body-tiny" x="2014" y="792">source: src/token_mixer/models/swinunetr.py</text>
+  </g>
+
+  <g id="verified-notes">
+    <rect class="panel" x="48" y="1020" width="2302" height="226" rx="26"/>
+    <rect x="48" y="1020" width="9" height="226" rx="4" fill="#a66a22"/>
+    <text class="section" x="76" y="1054">VERIFIED SIDE NOTES</text>
+    <text class="body-tiny" x="304" y="1054">configuration and orchestration anchors kept outside conceptual MONAI internals</text>
+
+    <g id="transform-note">
+      <rect class="note-teal" x="70" y="1072" width="540" height="145" rx="17"/>
+      <rect x="90" y="1091" width="122" height="23" rx="11" fill="#286d68"/>
+      <text class="pill-dark" x="103" y="1107">TRANSFORMS</text>
+      <text class="body-bold" x="90" y="1140">build_monai_swinunetr_transform</text>
+      <text class="body-small" x="90" y="1162">mapping: image + label, or case record</text>
+      <text class="body-small" x="90" y="1183">normalize → pad/crop → augment</text>
+      <text class="mono-small" x="90" y="1204">[4,D,H,W]  +  [3,D,H,W] masks</text>
+    </g>
+
+    <g id="training-note">
+      <rect class="note-plum" x="630" y="1072" width="540" height="145" rx="17"/>
+      <rect x="650" y="1091" width="124" height="23" rx="11" fill="#66598f"/>
+      <text class="pill-dark" x="663" y="1107">TRAINING</text>
+      <text class="body-bold" x="650" y="1140">run_swinunetr → run_3d_baseline</text>
+      <text class="body-small" x="650" y="1162">loss: dice_ce · sigmoid Dice in loss</text>
+      <text class="body-small" x="650" y="1183">phase: train · encoder unfrozen · AdamW</text>
+      <text class="mono-small" x="650" y="1204">monitor mean_dice  ·  maximize = true</text>
+    </g>
+
+    <g id="guardrail-note">
+      <rect class="note-ochre" x="1190" y="1072" width="540" height="145" rx="17"/>
+      <rect x="1210" y="1091" width="144" height="23" rx="11" fill="#a66a22"/>
+      <text class="pill-dark" x="1223" y="1107">SHAPE GUARDRAILS</text>
+      <text class="body-bold" x="1210" y="1140">patch 2 · window 7 · feature 48</text>
+      <text class="body-small" x="1210" y="1162">spatial_dims = 3 · default ROI = 96³</text>
+      <text class="body-small" x="1210" y="1183">adapter checks positive D/H/W dimensions</text>
+      <text class="body-tiny" x="1210" y="1204">MONAI retains implementation-specific validity checks</text>
+    </g>
+
+    <g id="source-note">
+      <rect class="note-blue" x="1750" y="1072" width="570" height="145" rx="17"/>
+      <rect x="1770" y="1091" width="151" height="23" rx="11" fill="#3d6d8c"/>
+      <text class="pill-dark" x="1783" y="1107">SOURCE ANCHORS</text>
+      <text class="mono-small" x="1770" y="1140">models/swinunetr.py</text>
+      <text class="mono-small" x="1770" y="1161">data/transforms.py</text>
+      <text class="mono-small" x="1770" y="1182">configs/model/swinunetr.yaml</text>
+      <text class="body-tiny" x="1770" y="1204">internal MONAI names intentionally omitted</text>
+    </g>
+  </g>
+
+  <g id="footer">
+    <line class="rule" x1="70" y1="1272" x2="2330" y2="1272"/>
+    <text class="body-small" x="70" y="1300">HAND-AUTHORED  ·  GRAYSCALE-SAFE  ·  EMBEDDED STYLES  ·  NO EXTERNAL RESOURCES</text>
+    <text class="body-small" x="1940" y="1300">TASK 10 / VISUAL LANE</text>
+  </g>
+</svg>
