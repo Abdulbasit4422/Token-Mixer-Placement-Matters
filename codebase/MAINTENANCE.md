@@ -84,6 +84,8 @@ For source changes, preserve the nearest contract tests and private seams first.
 Run focused tests before and after the edit, then run the repository validation
 ladder appropriate to the change. For documentation-only changes, do not alter
 or regenerate tests; validate Markdown, links, whitespace, and scoped Git state.
+Use [TESTING.md](TESTING.md) for the active test taxonomy and
+[NOTEBOOKS.md](NOTEBOOKS.md) for the companion workflow.
 
 The standard evidence sequence for behavior changes is:
 
@@ -132,16 +134,38 @@ item below against active source, config, or tests:
 
 ## Maintenance Workflow
 
-Use this sequence for each scoped maintenance change:
+Use this exact sequence for each scoped maintenance change:
 
-1. Read [ARCHITECTURE.md](ARCHITECTURE.md) and identify the owning boundary.
-2. Locate active source, config, tests, and existing guide/SVG references; exclude archive and generated state.
-3. Search definitions, imports, callers, selectors, fixtures, links, and persisted names before changing anything.
-4. Record removal or rename evidence and preserve useful contract tests and private seams.
-5. Edit the smallest owning source, test, guide, or asset set. Do not fold later documentation tasks into the current change.
-6. Run focused checks, Markdown/link/whitespace checks, and source-specific validation; use the full plan validation before the final documentation release.
-7. Review the diff for machine paths, secrets, unsupported claims, stale symbols, broken ownership, and accidental generated/archive files.
-8. Stage only intended files, inspect the staged diff, and create one atomic commit with a behavior-based message.
+1. **Identify source of truth.** Read [ARCHITECTURE.md](ARCHITECTURE.md), then
+   identify the active implementation, configuration, tests, notebook `.py`
+   source, and owning guide or SVG for the behavior being changed.
+2. **Search references.** Search active definitions, imports, callers,
+   selectors, fixtures, links, and persisted names before changing anything.
+3. **Preserve seams.** Keep nearest contract tests and private seams, including
+   optional-dependency, pipeline, checkpoint, provenance, and reproducibility
+   boundaries. Similar names or overlapping happy paths are not removal proof.
+4. **Update owning guide/SVG.** Edit the smallest owning source, test, guide, or
+   asset set. Update the owning guide and its SVG when a shown fact or boundary
+   changes; update [README.md](README.md) only when navigation or ownership
+   changes. Do not fold later documentation tasks into the current change.
+5. **Run focused/full/compile/lock/diff checks.** Run focused tests first, then
+   the full suite and repository checks appropriate to the change:
+
+   ```bash
+   uv run pytest -q <focused test path>
+   uv run pytest -q -rs
+   uv run python -m compileall -q archive src tests
+   uv lock --check
+   git diff --check
+   ```
+
+   After staging, also run `git diff --cached --check` and inspect the staged
+   diff. Documentation-only work must not start training or real-data work.
+6. **Exclude archive/generated state.** Exclude `archive/`, `outputs/`,
+   checkpoints, W&B files, caches, bytecode, paired notebook views, machine
+   paths, local data, credentials, and tokens from active source and guide
+   changes. Stage only intended files and create one atomic commit with a
+   behavior-based message.
 
 For notebook changes, the editable source is the `.py` companion. For SVG
 changes, complete the fact checklist above. For a selector or package-boundary

@@ -20,10 +20,11 @@ new maintainer:
 9. [Model guides](#model-guides) explain architecture-specific tensor paths and experiment choices.
 10. [Maintenance](MAINTENANCE.md) is the change checklist for source, tests, guides, and SVGs.
 
-`DATA.md`, `CONFIG.md`, `TRAINING.md`, `EVALUATE.md`, and `REPRODUCIBILITY.md`
-are active cross-cutting guides. `TESTING.md`, `NOTEBOOKS.md`, and the model
-guides remain planned follow-on guides. Links stay here as the canonical
-navigation surface; each active guide owns its implementation details.
+`DATA.md`, `CONFIG.md`, `TRAINING.md`, `EVALUATE.md`, `REPRODUCIBILITY.md`,
+`TESTING.md`, and `NOTEBOOKS.md` are active cross-cutting guides. The model
+guides remain planned follow-on guides; their repository-relative entries below
+are intentionally retained for those later tasks. Links stay here as the
+canonical navigation surface; each active guide owns its implementation details.
 
 ## System Map
 
