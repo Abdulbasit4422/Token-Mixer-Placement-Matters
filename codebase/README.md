@@ -78,6 +78,10 @@ implementation details into another guide.
 
 ## Model Guides
 
+This is a planned guide index. The links below intentionally target later model
+guide tasks; until those files land, they are not active navigation targets or
+implementation references.
+
 | Guide | Scope |
 | --- | --- |
 | [METAUNETR.md](METAUNETR.md) | `metaunetr_mamba`, `mod_a`, and `mod_b` placement variants |
@@ -95,21 +99,22 @@ Portable, hand-authored SVGs belong under `assets/codebase/`. Each asset is
 owned by the guide that explains it, uses repository-relative source references,
 and must pass the fact checklist in [MAINTENANCE.md](MAINTENANCE.md).
 
-| Asset | Intended owner |
+| Asset | Status and owner |
 | --- | --- |
-| [data-flow.svg](../assets/codebase/data-flow.svg) | [DATA.md](DATA.md) |
-| [config-flow.svg](../assets/codebase/config-flow.svg) | [CONFIG.md](CONFIG.md) |
-| [model-placement-overview.svg](../assets/codebase/model-placement-overview.svg) | [METAUNETR.md](METAUNETR.md) |
-| [metaunetr-variants.svg](../assets/codebase/metaunetr-variants.svg) | [METAUNETR.md](METAUNETR.md) |
-| [resunet3d.svg](../assets/codebase/resunet3d.svg) | [RESUNET3D.md](RESUNET3D.md) |
-| [swinunetr.svg](../assets/codebase/swinunetr.svg) | [SWINUNETR.md](SWINUNETR.md) |
-| [transunet.svg](../assets/codebase/transunet.svg) | [TRANSUNET.md](TRANSUNET.md) |
-| [cnn-pretraining.svg](../assets/codebase/cnn-pretraining.svg) | [CNN_PRETRAINING.md](CNN_PRETRAINING.md) |
+| [data-flow.svg](../assets/codebase/data-flow.svg) | Active; owned by [DATA.md](DATA.md) |
+| [config-flow.svg](../assets/codebase/config-flow.svg) | Active; owned by [CONFIG.md](CONFIG.md) |
+| [model-placement-overview.svg](../assets/codebase/model-placement-overview.svg) | Planned asset for later [METAUNETR.md](METAUNETR.md) placement-overview task; intentionally unresolved and not active |
+| [metaunetr-variants.svg](../assets/codebase/metaunetr-variants.svg) | Planned asset for later [METAUNETR.md](METAUNETR.md) variant-guide task; intentionally unresolved and not active |
+| [resunet3d.svg](../assets/codebase/resunet3d.svg) | Planned asset for later [RESUNET3D.md](RESUNET3D.md) guide task; intentionally unresolved and not active |
+| [swinunetr.svg](../assets/codebase/swinunetr.svg) | Planned asset for later [SWINUNETR.md](SWINUNETR.md) guide task; intentionally unresolved and not active |
+| [transunet.svg](../assets/codebase/transunet.svg) | Planned asset for later [TRANSUNET.md](TRANSUNET.md) guide task; intentionally unresolved and not active |
+| [cnn-pretraining.svg](../assets/codebase/cnn-pretraining.svg) | Planned asset for later [CNN_PRETRAINING.md](CNN_PRETRAINING.md) guide task; intentionally unresolved and not active |
 
 The data-flow and config-flow assets are owned by the active `DATA.md` and
 `CONFIG.md` guides; their SVG files are maintained separately from this index.
-The remaining links name planned assets for later documentation tasks. No
-generated diagram or documentation output is a source of truth.
+The six model SVG links above are future deliverables mapped to their later
+model guides, not present assets. No generated diagram or documentation output
+is a source of truth.
 
 ## Source Of Truth
 

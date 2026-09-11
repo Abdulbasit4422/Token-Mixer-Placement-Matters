@@ -189,20 +189,20 @@ change:
 uv run pytest -q tests/test_package_import.py tests/test_cli_config.py tests/test_reproducibility.py
 
 # Data and manifest contracts
-uv run pytest -q tests/data
+uv run pytest -q -rs tests/data
 
 # Model contracts
-uv run pytest -q tests/models
+uv run pytest -q -rs tests/models
 
 # Evaluation contracts
-uv run pytest -q tests/evaluation
+uv run pytest -q -rs tests/evaluation
 
 # Training and resume contracts
 uv run pytest -q tests/training/test_resume_contract.py
 uv run pytest -q tests/training
 
 # Pipeline and synthetic integration contracts
-uv run pytest -q tests/pipelines
+uv run pytest -q -rs tests/pipelines
 uv run pytest -q -rs tests/integration/test_synthetic_debug.py
 ```
 
@@ -226,10 +226,12 @@ After staging, repeat the whitespace check against the staged content:
 git diff --cached --check
 ```
 
-For a documentation-only change, these commands validate collection and source
-syntax without starting training. Do not add a full training command to a
-documentation check. Use [NOTEBOOKS.md](NOTEBOOKS.md) for notebook execution
-and [MAINTENANCE.md](MAINTENANCE.md) for the complete change sequence.
+For a documentation-only change, these commands may execute tiny synthetic or
+fixture `fit` paths because active pipeline and integration tests exercise them.
+They do not perform full-dataset or real-data training. Do not add a full
+training command to a documentation check. Use [NOTEBOOKS.md](NOTEBOOKS.md) for
+notebook execution and [MAINTENANCE.md](MAINTENANCE.md) for the complete change
+sequence.
 
 ## What Tests Do Not Prove
 
