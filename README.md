@@ -85,11 +85,8 @@ files, W&B initialization, or plotting. Pipelines own those boundaries, while
 shared engine in `token_mixer.training.engine` remains independent of any model
 name.
 
-Eight historical scripts are preserved under `archive/` and are not supported
-entry points: `convert_to_nnunet.py`, `dataset.py`, `finetune_brats_mod_b.py`,
-`finetune_nnunet_brats.py`, `finetune_transunet.py`, `main.py`,
-`pretrain_cnn.py`, and `train_swinunetr_new.py`. Do not launch them for new
-runs.
+Historical code under `archive/` is preserved for provenance and is not a
+supported entry-point tree. Do not launch archive code for new runs.
 
 ## Runtime environment variables
 
@@ -757,11 +754,12 @@ See [`data/README.md`](data/README.md) for detailed data contract.
 Current repository verification reports:
 
 ```text
-uv run pytest -q: 403 passed, 6 skipped
+uv run pytest -q: 408 passed, 1 skipped
 ```
 
-Six skips are environment-gated: five symlink-capability skips and one external
-TransUNet integration skip. This snapshot does **not** claim a real BraTS-data
-run, full-dataset/cloud training, or validation of an external TransUNet
-checkout and pretrained asset. No such run is launched by README commands
-unless user explicitly executes it after approval.
+One skip remains environment-gated: the external TransUNet integration. The
+filesystem symlink checks run in the current Windows environment. This snapshot
+does **not** claim a real BraTS-data run, full-dataset/cloud training, or
+validation of an external TransUNet checkout and pretrained asset. No such run
+is launched by README commands unless user explicitly executes it after
+approval.

@@ -7,7 +7,7 @@ volume before computing metrics.
 
 ## Architecture Diagram
 
-[TransUNet slice adapter diagram](../assets/codebase/transunet.svg) summarizes
+![TransUNet slice adapter](../assets/codebase/transunet.svg) summarizes
 the volume-to-slice boundary, external 2-D model boundary, and canonical output
 conversion described below.
 

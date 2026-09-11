@@ -28,8 +28,8 @@ the claims in this guide:
 
 ## Diagrams
 
-- [Shared MetaUNETR shape and placement overview](../assets/codebase/model-placement-overview.svg)
-- [MetaUNETR variant comparison](../assets/codebase/metaunetr-variants.svg)
+- ![Shared MetaUNETR shape and placement overview](../assets/codebase/model-placement-overview.svg)
+- ![MetaUNETR variant comparison](../assets/codebase/metaunetr-variants.svg)
 
 These hand-authored diagrams summarize the source-backed tensor path and exact
 variant slots. The source map above remains the authority for implementation

@@ -13,7 +13,7 @@ reproducibility contracts remain owned by [DATA.md](DATA.md),
 
 ## Architecture Diagram
 
-[ResUNet3D architecture map](../assets/codebase/resunet3d.svg) summarizes the
+![ResUNet3D architecture map](../assets/codebase/resunet3d.svg) summarizes the
 verified default tensor trace, skip routes, residual block, phased fit, and
 optional transfer boundary described below.
 

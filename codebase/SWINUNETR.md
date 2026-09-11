@@ -551,11 +551,10 @@ the repository reproduced paper weights, metrics, or training conditions.
 
 ## Diagram Boundary
 
-The linked [`assets/codebase/swinunetr.svg`](../assets/codebase/swinunetr.svg)
-shows the input contract, four conceptual hierarchical Swin stages, decoder and
-skip route, adapter boundary, public transformer encoder boundary, and raw
-logit output. Its lower notes summarize the optional transform, active training
-settings, shape defaults, and source anchors.
+The diagram above shows the input contract, four conceptual hierarchical Swin
+stages, decoder and skip route, adapter boundary, public transformer encoder
+boundary, and raw logit output. Its lower notes summarize the optional
+transform, active training settings, shape defaults, and source anchors.
 
 The figure intentionally keeps MONAI's private block names and exact internal
 operator API outside the local contract. The shape tables in this guide provide

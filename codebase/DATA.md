@@ -1,6 +1,6 @@
 # Data Flow And Contracts
 
-[Data-flow diagram](../assets/codebase/data-flow.svg)
+![Data flow](../assets/codebase/data-flow.svg)
 
 This guide documents the active data boundary. Runtime behavior is defined by
 the package under `src/`, the Hydra values under `configs/`, and the contract

@@ -1,6 +1,6 @@
 # Configuration Flow
 
-[Configuration-flow diagram](../assets/codebase/config-flow.svg)
+![Configuration flow](../assets/codebase/config-flow.svg)
 
 This guide documents active Hydra composition and the configuration boundary
 used by the Token Mixer package. The YAML files under `configs/` define defaults;

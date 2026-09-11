@@ -12,7 +12,7 @@ remain owned by [CONFIG.md](CONFIG.md), [TRAINING.md](TRAINING.md), and
 background live in [DATA.md](DATA.md); this guide records the CNN-specific
 details that those cross-cutting guides do not own.
 
-[CNN pretraining flow diagram](../assets/codebase/cnn-pretraining.svg)
+![CNN pretraining flow](../assets/codebase/cnn-pretraining.svg)
 
 ## Source Map
 

@@ -96,16 +96,16 @@ Portable, hand-authored SVGs belong under `assets/codebase/`. Each asset is
 owned by the guide that explains it, uses repository-relative source references,
 and must pass the fact checklist in [MAINTENANCE.md](MAINTENANCE.md).
 
-| Asset | Status and owner |
-| --- | --- |
-| [data-flow.svg](../assets/codebase/data-flow.svg) | Active; owned by [DATA.md](DATA.md) |
-| [config-flow.svg](../assets/codebase/config-flow.svg) | Active; owned by [CONFIG.md](CONFIG.md) |
-| [model-placement-overview.svg](../assets/codebase/model-placement-overview.svg) | Active; owned by [METAUNETR.md](METAUNETR.md) |
-| [metaunetr-variants.svg](../assets/codebase/metaunetr-variants.svg) | Active; owned by [METAUNETR.md](METAUNETR.md) |
-| [resunet3d.svg](../assets/codebase/resunet3d.svg) | Active; owned by [RESUNET3D.md](RESUNET3D.md) |
-| [swinunetr.svg](../assets/codebase/swinunetr.svg) | Active; owned by [SWINUNETR.md](SWINUNETR.md) |
-| [transunet.svg](../assets/codebase/transunet.svg) | Active; owned by [TRANSUNET.md](TRANSUNET.md) |
-| [cnn-pretraining.svg](../assets/codebase/cnn-pretraining.svg) | Active; owned by [CNN_PRETRAINING.md](CNN_PRETRAINING.md) |
+| Asset | Status | Owner |
+| --- | --- | --- |
+| ![Data flow](../assets/codebase/data-flow.svg) | Active | [DATA.md](DATA.md) |
+| ![Configuration flow](../assets/codebase/config-flow.svg) | Active | [CONFIG.md](CONFIG.md) |
+| ![Model placement overview](../assets/codebase/model-placement-overview.svg) | Active | [METAUNETR.md](METAUNETR.md) |
+| ![MetaUNETR variants](../assets/codebase/metaunetr-variants.svg) | Active | [METAUNETR.md](METAUNETR.md) |
+| ![ResUNet3D architecture](../assets/codebase/resunet3d.svg) | Active | [RESUNET3D.md](RESUNET3D.md) |
+| ![SwinUNETR architecture](../assets/codebase/swinunetr.svg) | Active | [SWINUNETR.md](SWINUNETR.md) |
+| ![TransUNet architecture](../assets/codebase/transunet.svg) | Active | [TRANSUNET.md](TRANSUNET.md) |
+| ![CNN pretraining flow](../assets/codebase/cnn-pretraining.svg) | Active | [CNN_PRETRAINING.md](CNN_PRETRAINING.md) |
 
 All eight SVG assets are active hand-authored diagrams owned by the guides shown
 above; their SVG files are maintained separately from this index. No generated
