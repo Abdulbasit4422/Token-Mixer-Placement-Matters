@@ -20,10 +20,10 @@ new maintainer:
 9. [Model guides](#model-guides) explain architecture-specific tensor paths and experiment choices.
 10. [Maintenance](MAINTENANCE.md) is the change checklist for source, tests, guides, and SVGs.
 
-`DATA.md` and `CONFIG.md` are active guides for Task 5. `TRAINING.md`,
-`EVALUATE.md`, `REPRODUCIBILITY.md`, `TESTING.md`, `NOTEBOOKS.md`, and the model
-guides remain planned follow-on guides. Links stay here so this index remains
-the canonical navigation surface while the documentation set is completed.
+`DATA.md`, `CONFIG.md`, `TRAINING.md`, `EVALUATE.md`, and `REPRODUCIBILITY.md`
+are active cross-cutting guides. `TESTING.md`, `NOTEBOOKS.md`, and the model
+guides remain planned follow-on guides. Links stay here as the canonical
+navigation surface; each active guide owns its implementation details.
 
 ## System Map
 
@@ -68,8 +68,8 @@ implementation details into another guide.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Package ownership, dispatch, dependency direction, and boundaries |
 | [DATA.md](DATA.md) | Source layouts, preparation, discovery, labels, manifests, datasets, and transforms |
 | [CONFIG.md](CONFIG.md) | Hydra groups, profiles, experiment selectors, run settings, and output resolution |
-| [TRAINING.md](TRAINING.md) | Engine, phases, loaders, checkpoints, resume, warm start, tracking, and artifacts |
-| [EVALUATE.md](EVALUATE.md) | Inference, spacing, Dice/HD95 metrics, label conversion, and visualizations |
+| [TRAINING.md](TRAINING.md) | Engine, phases, pipeline handoff, checkpoints, resume, warm start, tracking, and artifacts |
+| [EVALUATE.md](EVALUATE.md) | Inference, spacing, Dice/HD95 metrics, logit conversion, and visualizations |
 | [REPRODUCIBILITY.md](REPRODUCIBILITY.md) | Seeds, deterministic settings, manifest identity, provenance, and run separation |
 | [TESTING.md](TESTING.md) | Test taxonomy, contract seams, optional skips, and validation commands |
 | [NOTEBOOKS.md](NOTEBOOKS.md) | Notebook purposes, execution order, and one-way Jupytext synchronization |
