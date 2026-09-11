@@ -5,6 +5,12 @@ wraps the official Beckschen/TransUNet R50-ViT-B/16 model as a 2-D slice
 adapter. It is not a native 3-D model, and its evaluator does not reconstruct a
 volume before computing metrics.
 
+## Architecture Diagram
+
+[TransUNet slice adapter diagram](../assets/codebase/transunet.svg) summarizes
+the volume-to-slice boundary, external 2-D model boundary, and canonical output
+conversion described below.
+
 ## Source Map
 
 Runtime behavior is defined by these active symbols:
