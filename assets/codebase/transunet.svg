@@ -46,6 +46,7 @@
     .channel-et { fill: #286d68; }
     .channel-tc { fill: #655a91; }
     .channel-wt { fill: #a66a22; }
+    .rust-fill { fill: #8b571d; }
   ]]></style>
   <defs>
     <marker id="arrow-dark" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
@@ -120,7 +121,7 @@
 
     <g id="volume-to-slice-card">
       <rect class="card adapter" x="430" y="285" width="310" height="610" rx="20"/>
-      <rect x="451" y="307" width="180" height="25" rx="12" fill="#a66a22"/>
+      <rect class="rust-fill" x="451" y="307" width="180" height="25" rx="12"/>
       <text class="pill-text" x="463" y="324">VOLUME → SLICE</text>
       <text class="card-title" x="451" y="365">explicit adapter</text>
       <text class="card-subtitle" x="451" y="388">no hidden 3-D context path</text>
@@ -139,7 +140,7 @@
       <text class="body-bold" x="467" y="730">batch contract</text>
       <text class="mono" x="467" y="753">[B, 4, H, W]</text>
       <text class="body-small" x="467" y="772">one model item = one slice</text>
-      <rect x="451" y="815" width="268" height="50" rx="12" fill="#a66a22"/>
+      <rect class="rust-fill" x="451" y="815" width="268" height="50" rx="12"/>
       <text class="tag-text" x="467" y="837">3-D DIMENSION D</text>
       <text class="tag-text" x="467" y="855">IS NOT PASSED TO MODEL</text>
     </g>
@@ -217,7 +218,7 @@
       <text class="mini-label" x="1717" y="528">CHANNEL IDENTITY DOES NOT MOVE</text>
       <rect class="channel-et" x="1717" y="548" width="174" height="48" rx="10"/>
       <rect class="channel-tc" x="1907" y="548" width="174" height="48" rx="10"/>
-      <rect class="channel-wt" x="2097" y="548" width="206" height="48" rx="10"/>
+      <rect class="channel-wt rust-fill" x="2097" y="548" width="206" height="48" rx="10"/>
       <text class="tag-text" x="1780" y="578">ET / ch0</text>
       <text class="tag-text" x="1970" y="578">TC / ch1</text>
       <text class="tag-text" x="2168" y="578">WT / ch2</text>
@@ -241,7 +242,7 @@
     <rect x="40" y="975" width="9" height="535" rx="4" fill="#a66a22"/>
     <text class="panel-label" x="72" y="1017">02 / RECONSTRUCTION + METRIC BOUNDARY</text>
     <text class="panel-note" x="442" y="1017">same canonical region names; different sampling unit, inference path, and HD95 meaning</text>
-    <rect x="1960" y="997" width="364" height="30" rx="15" fill="#a66a22"/>
+    <rect class="rust-fill" x="1960" y="997" width="364" height="30" rx="15"/>
     <text class="tag-text" x="1981" y="1017">DO NOT MERGE PROTOCOLS</text>
 
     <path class="flow-teal" d="M 1998 895 V 1050" marker-end="url(#arrow-teal)"/>
@@ -273,7 +274,7 @@
       <text class="body-tiny" x="636" y="1292">then sigmoid + threshold</text>
       <rect x="896" y="1204" width="192" height="98" rx="14" fill="#f7fafc" stroke="#9db8c8"/>
       <text class="body-bold" x="912" y="1230">case metrics</text>
-      <text class="body-small" x="912" y="1253">Dice + physical HD95</text>
+      <text class="body-small" x="912" y="1253">Dice + spacing-aware HD95</text>
       <text class="mono-small" x="912" y="1276">spacing: configured</text>
       <text class="body-tiny" x="912" y="1292">aggregate per case</text>
       <rect x="97" y="1330" width="991" height="75" rx="14" fill="#fffdf8" stroke="#9db8c8"/>
@@ -312,7 +313,7 @@
       <text class="body-tiny" x="1544" y="1292">no channel reorder</text>
       <rect x="1804" y="1204" width="219" height="98" rx="14" fill="#f7fbfa" stroke="#8fbab4"/>
       <text class="body-bold" x="1820" y="1230">evaluate_slices</text>
-      <text class="body-small" x="1820" y="1253">Dice + unit HD95</text>
+      <text class="body-small" x="1820" y="1253">Dice + unit-spaced HD95</text>
       <text class="mono-small" x="1820" y="1276">spacing: (1,1,1)</text>
       <text class="body-tiny" x="1820" y="1292">aggregate per slice</text>
       <rect x="2080" y="1204" width="223" height="98" rx="14" fill="#f7fbfa" stroke="#8fbab4"/>

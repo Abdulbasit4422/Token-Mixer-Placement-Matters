@@ -1,24 +1,23 @@
 # TransUNet Slice Protocol
 
-This guide documents the active TransUNet path, not the historical
-`archive/finetune_transunet.py` script. The supported implementation wraps the
-official Beckschen/TransUNet R50-ViT-B/16 model as a 2-D slice adapter. It is
-not a native 3-D model, and its evaluator does not reconstruct a volume before
-computing metrics.
+This guide documents the active TransUNet path. The supported implementation
+wraps the official Beckschen/TransUNet R50-ViT-B/16 model as a 2-D slice
+adapter. It is not a native 3-D model, and its evaluator does not reconstruct a
+volume before computing metrics.
 
 ## Source Map
 
 Runtime behavior is defined by these active symbols:
 
-- [`src/token_mixer/models/transunet.py::validate_transunet_config`](../src/token_mixer/models/transunet.py#L379-L387), [`::_config_values`](../src/token_mixer/models/transunet.py#L307-L353), and [`::_validate_external_paths`](../src/token_mixer/models/transunet.py#L356-L377) validate configuration and external assets before import.
+- [`src/token_mixer/models/transunet.py::validate_transunet_config`](../src/token_mixer/models/transunet.py#L379-L387), [`src/token_mixer/models/transunet.py::_config_values`](../src/token_mixer/models/transunet.py#L307-L353), and [`src/token_mixer/models/transunet.py::_validate_external_paths`](../src/token_mixer/models/transunet.py#L356-L377) validate configuration and external assets before import.
 - [`src/token_mixer/models/transunet.py::get_transunet_metadata`](../src/token_mixer/models/transunet.py#L390-L406) defines the dimensionality and canonical output metadata.
 - [`src/token_mixer/models/transunet.py::adapt_transunet_output`](../src/token_mixer/models/transunet.py#L428-L489) converts the external four-class output to canonical region logits.
-- [`src/token_mixer/models/transunet.py::resize_slice`](../src/token_mixer/models/transunet.py#L492-L547) is the public 2-D interpolation helper; [`::TransUNetSliceAdapter.forward`](../src/token_mixer/models/transunet.py#L594-L635) owns model-boundary resizing.
+- [`src/token_mixer/models/transunet.py::resize_slice`](../src/token_mixer/models/transunet.py#L492-L547) is the public 2-D interpolation helper; [`src/token_mixer/models/transunet.py::TransUNetSliceAdapter.forward`](../src/token_mixer/models/transunet.py#L594-L635) owns model-boundary resizing.
 - [`src/token_mixer/models/transunet.py::TransUNetSliceAdapter`](../src/token_mixer/models/transunet.py#L550-L592) exposes the 2-D tensor contract and shared `encoder` seam.
-- [`src/token_mixer/models/transunet.py::build_transunet`](../src/token_mixer/models/transunet.py#L777-L849), [`::_import_external_api`](../src/token_mixer/models/transunet.py#L638-L701), [`::_load_pretrained`](../src/token_mixer/models/transunet.py#L704-L723), [`::_adapt_input_stem`](../src/token_mixer/models/transunet.py#L741-L775), and [`::load_transunet_state_dict`](../src/token_mixer/models/transunet.py#L726-L738) own construction and weight boundaries.
-- [`src/token_mixer/pipelines/train_transunet.py::run_transunet`](../src/token_mixer/pipelines/train_transunet.py#L64-L88), [`::_build_model`](../src/token_mixer/pipelines/train_transunet.py#L64-L69), and [`::build_loaders`](../src/token_mixer/pipelines/train_transunet.py#L31-L33) connect the adapter to the shared training path.
-- [`src/token_mixer/pipelines/_baseline_common.py::build_slice_loaders`](../src/token_mixer/pipelines/_baseline_common.py#L530-L575), [`::_CanonicalSliceLoader`](../src/token_mixer/pipelines/_baseline_common.py#L498-L528), [`::build_slice_evaluator`](../src/token_mixer/pipelines/_baseline_common.py#L789-L796), and [`::evaluate_slices`](../src/token_mixer/pipelines/_baseline_common.py#L694-L786) define loading, target conversion, and slice metrics.
-- [`src/token_mixer/data/datasets.py::BratsSliceDataset`](../src/token_mixer/data/datasets.py#L94-L144), [`src/token_mixer/data/labels.py::regions_to_multiclass`](../src/token_mixer/data/labels.py#L50-L59), and [`::multiclass_to_regions`](../src/token_mixer/data/labels.py#L62-L68) define volume-to-slice and label conversion.
+- [`src/token_mixer/models/transunet.py::build_transunet`](../src/token_mixer/models/transunet.py#L777-L849), [`src/token_mixer/models/transunet.py::_import_external_api`](../src/token_mixer/models/transunet.py#L638-L701), [`src/token_mixer/models/transunet.py::_load_pretrained`](../src/token_mixer/models/transunet.py#L704-L723), [`src/token_mixer/models/transunet.py::_adapt_input_stem`](../src/token_mixer/models/transunet.py#L741-L775), and [`src/token_mixer/models/transunet.py::load_transunet_state_dict`](../src/token_mixer/models/transunet.py#L726-L738) own construction and weight boundaries.
+- [`src/token_mixer/pipelines/train_transunet.py::run_transunet`](../src/token_mixer/pipelines/train_transunet.py#L64-L88), [`src/token_mixer/pipelines/train_transunet.py::_build_model`](../src/token_mixer/pipelines/train_transunet.py#L64-L69), and [`src/token_mixer/pipelines/train_transunet.py::build_loaders`](../src/token_mixer/pipelines/train_transunet.py#L31-L33) connect the adapter to the shared training path.
+- [`src/token_mixer/pipelines/_baseline_common.py::build_slice_loaders`](../src/token_mixer/pipelines/_baseline_common.py#L530-L575), [`src/token_mixer/pipelines/_baseline_common.py::_CanonicalSliceLoader`](../src/token_mixer/pipelines/_baseline_common.py#L498-L528), [`src/token_mixer/pipelines/_baseline_common.py::build_slice_evaluator`](../src/token_mixer/pipelines/_baseline_common.py#L789-L796), and [`src/token_mixer/pipelines/_baseline_common.py::evaluate_slices`](../src/token_mixer/pipelines/_baseline_common.py#L694-L786) define loading, target conversion, and slice metrics.
+- [`src/token_mixer/data/datasets.py::BratsSliceDataset`](../src/token_mixer/data/datasets.py#L94-L144), [`src/token_mixer/data/labels.py::regions_to_multiclass`](../src/token_mixer/data/labels.py#L50-L59), and [`src/token_mixer/data/labels.py::multiclass_to_regions`](../src/token_mixer/data/labels.py#L62-L68) define volume-to-slice and label conversion.
 - [`configs/model/transunet.yaml`](../configs/model/transunet.yaml#L1-L12), [`configs/experiment/transunet.yaml`](../configs/experiment/transunet.yaml#L1-L32), [`configs/data/brats.yaml`](../configs/data/brats.yaml#L1-L22), [`configs/run/debug.yaml`](../configs/run/debug.yaml#L1-L17), and [`configs/run/full.yaml`](../configs/run/full.yaml#L1-L17) define shipped defaults.
 - [`tests/models/test_transunet_config.py`](../tests/models/test_transunet_config.py#L98-L336), [`tests/pipelines/test_baseline_pipelines.py`](../tests/pipelines/test_baseline_pipelines.py#L253-L394), and [`tests/data/test_datasets.py`](../tests/data/test_datasets.py#L170-L211) protect asset validation, output adaptation, resizing, injected backends, pipeline ordering, and slice shapes.
 
@@ -133,7 +132,7 @@ The corresponding README contract is [`README.md::Runtime environment variables`
 and [`README.md::TransUNet debug command`](../README.md#L411-L429). The
 `third_party.pretrained_path` value is preferred by the active configuration
 resolver, but `model.pretrained_path` and the other supported aliases are also
-accepted by `::_resolve_pretrained_value`. The model YAML leaves its
+accepted by [`src/token_mixer/models/transunet.py::_resolve_pretrained_value`](../src/token_mixer/models/transunet.py#L174-L185). The model YAML leaves its
 model-level value `null`; the actual non-injected run must receive a path from a
 Hydra override or composed configuration.
 
@@ -277,7 +276,7 @@ second sigmoid or softmax at the wrong boundary.
 
 ## Training Path
 
-`run_transunet` supplies the adapter to `_baseline_common::run_2d_baseline` with
+`run_transunet` supplies the adapter to [`src/token_mixer/pipelines/_baseline_common.py::run_2d_baseline`](../src/token_mixer/pipelines/_baseline_common.py#L1264-L1351) with
 these builders:
 
 - `build_loaders` -> manifest-backed slice loaders.
@@ -390,9 +389,13 @@ integration:
 - Unit tests use fake checkouts, injected `nn.Module` backends, synthetic
   tensors, and temporary files to test validation order, output conversion,
   resize behavior, metadata, encoder exposure, and pipeline seams.
-- The external integration test runs only when `TRANSUNET_ROOT` and
-  `TRANSUNET_PRETRAINED` are set and point to usable assets; otherwise it is
-  skipped. A skip is not validation of the external checkout or `.npz`.
+- The external integration test skips only when either environment variable is
+  unset, or when the configured root is not a directory or the configured
+  pretrained path is not a file. When both configured paths exist, the test
+  attempts official construction; an incomplete or malformed checkout, an
+  incompatible external API, or an unreadable/incompatible `.npz` fails the
+  test rather than being skipped. A skip is not validation of the external
+  checkout or `.npz`.
 - The repository's README verification snapshot explicitly does not claim a
   real external TransUNet integration, real BraTS run, full cloud training, or
   pretrained-asset validation.
