@@ -112,7 +112,7 @@
       <rect class="surface-teal" x="82" y="418" width="366" height="142" rx="14"/>
       <text class="body-bold" x="102" y="446">configured source</text>
       <text class="mono" x="102" y="469">data.image_root</text>
-      <text class="mono-small" x="102" y="490">${runtime}/imagenet/</text>
+      <text class="mono-small" x="102" y="490">data/${runtime}/imagenet/</text>
       <text class="mono-small" x="102" y="509">  class_name/ image_*.jpg|png</text>
       <text class="body-small" x="102" y="538">root must exist · at least 2 images</text>
       <g transform="translate(350 438)">
