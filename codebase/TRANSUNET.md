@@ -113,14 +113,34 @@ be a file readable by NumPy and compatible with the external model's
 `VisionTransformer.load_from(weights)` method. A file that merely has an `.npz`
 suffix is not sufficient.
 
-The repository does not contain the external checkout or weights. Follow the
-official repository's checkout and asset instructions, keep both assets outside
-the reviewed source tree, and export their paths locally:
+A clean Git checkout does not version the external checkout or weights. Follow
+the official repository's checkout and asset instructions, keep both assets in
+ignored machine-local paths outside the reviewed source tree, and export their
+paths locally:
 
 ```bash
 export TRANSUNET_ROOT=/path/to/TransUNet
 export TRANSUNET_PRETRAINED=/path/to/R50+ViT-B_16.npz
 ```
+
+### Cloud Trial Asset Record
+
+The 2026-09-12 cloud trial acquired and validated these ignored assets:
+
+| Asset | Value |
+| --- | --- |
+| Official checkout | `third_party/TransUNet`; commit `02ef0010b36eb8328b5e689eadaf613602edf9b8` |
+| Required source files | `networks/vit_seg_modeling.py`, `networks/vit_seg_modeling_resnet_skip.py`, `networks/vit_seg_configs.py` |
+| Pretrained file | `third_party/TransUNet/model/vit_checkpoint/imagenet21k/R50+ViT-B_16.npz` |
+| Source URL | `https://storage.googleapis.com/vit_models/imagenet21k/R50%2BViT-B_16.npz` |
+| Size / SHA-256 | `461,217,452` bytes / `ff009bf39bb4f9198b834cfe46aba2bfdaf730e933ab3e3c4b1edf4226eaafbe` |
+| Validation | NumPy-readable `.npz`, 358 arrays, pose embedding present |
+
+The asset was loaded through the official `VisionTransformer` API and passed a
+CUDA inference smoke with input `[1, 4, 224, 224]`, output `[1, 3, 224, 224]`,
+and 105,279,492 parameters. This was an import/forward check, not a training
+capacity or quality result. The corresponding ignored runtime log is
+`outputs/cloud/transunet_smoke.log`.
 
 The README environment contract is explicit: the CLI does not substitute these
 environment variables into Hydra configuration. Pass them to the exact config

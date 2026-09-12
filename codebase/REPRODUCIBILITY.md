@@ -187,13 +187,55 @@ For an interpretable experiment record, retain the following together:
 The last item prevents a successful config print or synthetic contract test
 from being reported as a real-data result.
 
+## Cloud/GPU Capacity Records
+
+The following bounded capacity record was collected on the Shadeform A6000
+host for commit `d03500e171982068eb5c3d0a9d6840c6fa22d188`. It used one
+deterministic AdamW forward/backward/optimizer step per candidate, one process
+at a time, with AMP enabled and an otherwise idle GPU. Segmentation probes used
+synthetic tensors shaped `[B, 4, 96, 96, 96]`; the CNN probe used `[B, 3, 96,
+96]`. These are memory-capacity measurements, not convergence or quality
+results.
+
+| Model | Largest passing batch tested | Peak allocated / reserved bytes | Step time | Next boundary |
+| --- | ---: | ---: | ---: | --- |
+| ResUNet3D | 8 | 12,520,522,240 / 16,020,144,128 | 1.24 s | No OOM through batch 8 |
+| SwinUNETR | 8 | 17,758,090,752 / 24,972,886,016 | 2.26 s | No OOM through batch 8 |
+| MetaUNETR-Mamba | 8 | 30,336,061,440 / 34,554,773,504 | 2.56 s | No OOM through batch 8 |
+| Mod-B | 2 | 29,162,787,840 / 30,568,087,552 | 3.66 s | Batch 4 OOM; process reached about 47.09 GiB |
+| Mod-A | 1 | 25,243,877,888 / 26,325,549,056 | 4.27 s | Batch 2 OOM; process reached about 47.34 GiB |
+
+Operational capacity for this host is therefore **ResUNet3D, SwinUNETR, and
+MetaUNETR at batch 8; Mod-B at batch 2; Mod-A at batch 1 only**. These are
+largest passing candidates, not recommended production margins; retain the
+planned 15--20% headroom and use gradient accumulation when a larger effective
+batch is needed. Concurrent model processes were not measured and must not be
+inferred from this table; run one model process per GPU until a separate
+concurrency test is approved.
+
+| Record field | Value |
+| --- | --- |
+| Host/GPU | Shadeform; 1 x NVIDIA RTX A6000, 49,140 MiB |
+| Driver / CUDA / PyTorch | 595.84 / 13.0 / 2.13.0+cu130 |
+| Python / seed / determinism | 3.12.14 / 42 / enabled |
+| Manifest | `data/manifests/brats_seed42.json`; SHA-256 `5d58a3dd38ee82ac44e4f1625bd82a9900d987b2af8098c6299ecb26ce8335bb` |
+| Probe artifact | `outputs/cloud/capacity/*.json` (ignored runtime evidence) |
+| Data-loader workers | Not applicable to synthetic probe; real-data debug used 0 workers |
+
+The CNN batch-1 probe also passed with peak allocated/reserved bytes
+`67,010,048 / 75,497,472`. Raw probe outputs, checkpoints, and machine-local
+data remain outside Git; preserve their hashes and paths alongside any future
+run write-up.
+
 ## No-Real-Data Claims
 
-This documentation change makes no claim about real BraTS or ImageNet data,
-model convergence, GPU performance, or segmentation quality. The safe
-validation boundary is composition inspection and contract tests. The
-`--cfg job` option prints the composed configuration and does not dispatch a
-runner; loader construction, manifest checks, and training are separate steps.
+This documentation does not claim model convergence or segmentation quality.
+The capacity section is an explicit synthetic one-step GPU measurement, while
+the real-data debug runs are bounded smoke checks only. The safe validation
+boundaries remain composition inspection, contract tests, and clearly labelled
+runtime evidence. The `--cfg job` option prints the composed configuration and
+does not dispatch a runner; loader construction, manifest checks, and training
+are separate steps.
 
 The clean repository may not contain the configured manifest or data roots.
 That absence is a data-preflight condition, not a reason to substitute a
