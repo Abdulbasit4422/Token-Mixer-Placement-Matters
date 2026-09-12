@@ -25,7 +25,7 @@ tests:
 - [`src/token_mixer/models/cnn_pretrain.py::DenoisingAutoencoder`](../src/token_mixer/models/cnn_pretrain.py#L371-L430)
 - [`src/token_mixer/models/cnn_pretrain.py::build_denoising_model`](../src/token_mixer/models/cnn_pretrain.py#L433-L435)
 - [`src/token_mixer/models/cnn_pretrain.py::mse_loss`](../src/token_mixer/models/cnn_pretrain.py#L438-L440)
-- [`src/token_mixer/models/cnn_pretrain.py::compute_psnr` (brief spelling: `compute_psNR`)](../src/token_mixer/models/cnn_pretrain.py#L443-L453)
+- [`src/token_mixer/models/cnn_pretrain.py::compute_psnr`](../src/token_mixer/models/cnn_pretrain.py#L443-L453)
 - [`src/token_mixer/models/cnn_pretrain.py::evaluate_denoising`](../src/token_mixer/models/cnn_pretrain.py#L475-L500)
 - [`src/token_mixer/pipelines/pretrain_cnn.py::build_dataloaders`](../src/token_mixer/pipelines/pretrain_cnn.py#L228-L324)
 - [`src/token_mixer/pipelines/pretrain_cnn.py::run_cnn_denoising_pretrain`](../src/token_mixer/pipelines/pretrain_cnn.py#L755-L859)
@@ -44,9 +44,7 @@ tests:
 - [`tests/pipelines/test_pretrain_cnn.py` reconstruction and export contracts](../tests/pipelines/test_pretrain_cnn.py#L480-L696)
 - [`tests/training/test_artifacts.py::test_write_run_artifacts_persists_metrics_and_provenance`](../tests/training/test_artifacts.py#L11-L48)
 
-The active metric symbol is `compute_psnr`, with lowercase `psnr`. The
-`compute_psNR` spelling in the task brief refers to this function; use the
-source spelling in code and overrides.
+The active metric symbol is `compute_psnr`, with lowercase `psnr`.
 
 ## Purpose And Boundary
 

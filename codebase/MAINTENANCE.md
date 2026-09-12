@@ -171,7 +171,7 @@ For notebook changes, the editable source is the `.py` companion. For SVG
 changes, complete the fact checklist above. For a selector or package-boundary
 change, update the architecture map and affected model/config guide together.
 
-## Task 4 Source References
+## Active Source References
 
 - [`src/token_mixer/cli.py`](../src/token_mixer/cli.py)::`_dispatch`, `::_run`
 - [`src/token_mixer/pipelines/_baseline_common.py`](../src/token_mixer/pipelines/_baseline_common.py)::`run_2d_baseline`, `::run_3d_baseline`

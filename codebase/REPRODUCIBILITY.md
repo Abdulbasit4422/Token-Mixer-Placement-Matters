@@ -110,9 +110,7 @@ Reproducing a run requires keeping these identities together:
 
 The current runtime records package code version, not an automatic Git commit
 hash. A reproducibility record should therefore also retain the Git commit
-used for the run outside the runtime-generated files. Do not confuse the
-documentation commit named in a task report with the code identity of a future
-experiment.
+used for the run outside the runtime-generated files.
 
 Successful `provenance.json` contains selected identity fields, metadata, and
 tracking configuration. It is complementary to the full composed `config.yaml`;
