@@ -53,6 +53,10 @@ study.
 - Exclude CodeCarbon and carbon-equivalent estimates from the first study.
   Optional NVML board-power/energy measurement may be added later as a clearly
   labeled measurement boundary.
+- Make cloud W&B tracking mandatory for training runs. Keep local tracking
+  disabled by default, but make `configs/cloud.yaml` default to online tracking
+  with explicit entity/project values. A cloud training run is not considered
+  ready until its live epoch history is visible in W&B.
 - Make W&B destination explicit for reproducibility:
   `entity=aniekanetimudo`, `project=token-mixer-placement-matters`, unless the
   user selects a team entity before implementation.
@@ -87,6 +91,10 @@ Relevant active seams:
     entity: null
   ```
 
+  This is the current pre-instrumentation state. The target cloud profile
+  changes `enabled` to `true`, `mode` to `online`, and `entity` to
+  `aniekanetimudo`; the local profile remains disabled.
+
 - `src/token_mixer/training/tracking.py:49-81` supports disabled, offline, and
   online initialization.
 - `src/token_mixer/training/engine.py:399-459` owns batch training;
@@ -108,7 +116,11 @@ Relevant active seams:
 The cloud W&B credential was verified without creating a run: W&B SDK `0.29.0`
 loaded credentials from `/home/shadeform/.netrc`, and a read-only API call
 identified `aniekanetimudo`. This proves authentication, not write permission.
-The first online debug smoke must verify project creation/write access.
+The current `tracking.py` online guard checks only `WANDB_API_KEY`, so it would
+reject this valid `.netrc` credential. The implementation must use W&B's normal
+credential discovery (environment or `.netrc`) without printing the secret. The
+first online debug smoke must verify project creation/write access and live
+history visibility.
 
 The cloud GPU/data/weight preflight is complete. Historical synthetic capacity
 records are evidence for batch selection, not training-quality or inference-
@@ -325,6 +337,12 @@ Extend `training/tracking.py` as the only W&B boundary. Pipelines must not call
 the W&B SDK directly. The abstraction preserves disabled and offline no-op
 behavior while adding optional summary, table, and artifact operations.
 
+The cloud profile is the online path used for the study. A completed epoch is
+logged while the run remains open, so W&B charts update during training rather
+than appearing only after process exit. Local and offline modes remain useful
+for tests and development but are not valid substitutes for the cloud study's
+online tracking gate.
+
 #### Training run
 
 ```text
@@ -355,6 +373,12 @@ training
 → summary/provenance/checkpoint artifact logging
 → finish
 ```
+
+During steps 7--12, the user can inspect the live run in W&B. The required
+live charts are training/validation loss, regional/mean Dice, HD95, learning
+rate, epoch duration, throughput, and peak allocator memory. System telemetry
+may appear as additional W&B charts, but exact benchmark values come from the
+explicit synchronized collectors.
 
 This fixes the current ordering where held-out evaluation occurs after the
 tracker finishes. If changing ownership of `finish()` is too invasive, create
@@ -491,14 +515,17 @@ The first full run is blocked until all gates pass:
 ## Implementation sequence
 
 1. Add the efficiency data contract and pure measurement helpers.
-2. Add low-overhead training telemetry and correct tracker lifecycle.
-3. Add benchmark CLI/config and model-level plus case-level protocols.
-4. Extend local artifact and W&B tracking boundaries.
-5. Add focused tests and synthetic integration assertions.
-6. Run the existing suite and debug configuration.
-7. Run the cheap online W&B smoke with explicit entity/project overrides.
-8. Benchmark one restored model and inspect local/W&B evidence.
-9. Obtain explicit approval before starting the full model matrix.
+2. Make cloud tracking online by default and make authentication accept the
+   verified `.netrc` credential source without exposing secrets.
+3. Add low-overhead training telemetry and correct tracker lifecycle.
+4. Add benchmark CLI/config and model-level plus case-level protocols.
+5. Extend local artifact and W&B tracking boundaries.
+6. Add focused tests and synthetic integration assertions.
+7. Run the existing suite and debug configuration.
+8. Run the cheap online W&B smoke with explicit entity/project overrides and
+   verify live epoch charts.
+9. Benchmark one restored model and inspect local/W&B evidence.
+10. Obtain explicit approval before starting the full model matrix.
 
 No full training, paid compute extension, or broad dependency installation is
 part of this design approval. Adding `fvcore`, NVML bindings, or report tooling
