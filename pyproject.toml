@@ -23,6 +23,9 @@ dependencies = [
     "pyyaml",
     "requests>=2.31",
     "ipykernel>=7.2.0",
+    "ultralytics-thop==2.1.6",
+    "fvcore==0.1.5.post20221221",
+    "nvidia-ml-py==13.610.43",
 ]
 
 [project.optional-dependencies]
@@ -53,6 +56,7 @@ outdated_text_notebook_margin = 130
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

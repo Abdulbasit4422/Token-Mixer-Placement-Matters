@@ -41,6 +41,9 @@ def test_local_profile_composes_debug_experiment():
         assert cfg.experiment.name == "mod_a"
         assert cfg.paths.data_root.endswith("data/local/brats")
         assert OmegaConf.select(cfg, "tracking.enabled") is False
+        assert cfg.visualization.segmentation_snapshots.snapshot_interval_epochs == 10
+        assert cfg.visualization.segmentation_snapshots.image_channel == 3
+        assert cfg.visualization.segmentation_snapshots.local_enabled is False
 
 
 def test_cloud_profile_composes_full_experiment():
@@ -49,6 +52,40 @@ def test_cloud_profile_composes_full_experiment():
         assert cfg.run.name == "full"
         assert cfg.device == "cuda"
         assert cfg.paths.data_root.endswith("data/cloud/brats")
+        assert cfg.tracking.log_images is True
+        assert cfg.visualization.segmentation_snapshots.enabled is True
+        assert cfg.visualization.segmentation_snapshots.splits == ["train", "val"]
+
+
+def test_benchmark_profile_composes_without_training_dispatch():
+    with _compose("benchmark", []) as cfg:
+        assert cfg.command == "benchmark"
+        assert cfg.runtime == "benchmark"
+        assert cfg.run.name == "full"
+        assert cfg.experiment.name == "mod_a"
+        assert cfg.paths.data_root.endswith("data/cloud/brats")
+        assert cfg.data.name == "brats"
+        assert cfg.data.image_root is None
+        assert "root" not in cfg.data
+        assert cfg.paths.output_root.endswith("outputs")
+        assert cfg.tracking.enabled is True
+        assert cfg.tracking.mode == "online"
+        assert cfg.tracking.entity == "aniekanetimudo"
+        assert cfg.tracking.project == "token-mixer-placement-matters"
+        assert cfg.tracking.group == "token-mixer-brats-seed42"
+        assert cfg.tracking.job_type == "benchmark"
+        assert cfg.efficiency.enabled is True
+        assert cfg.efficiency.profiler.mac_tool == "thop"
+        assert cfg.efficiency.profiler.flop_tool == "fvcore"
+        assert cfg.benchmark.source_checkpoint is None
+        assert cfg.benchmark.source_artifact is None
+
+
+def test_benchmark_cnn_composition_uses_cloud_imagenet_root():
+    with _compose("benchmark", ["experiment=cnn_denoising_pretrain"]) as cfg:
+        assert cfg.paths.image_root.endswith("data/cloud/imagenet")
+        assert cfg.data.image_root.endswith("data/benchmark/imagenet")
+        assert cfg.data.root == cfg.data.image_root
 
 
 @pytest.mark.parametrize(
@@ -132,6 +169,28 @@ def test_dispatches_experiment_to_pipeline_without_constructing_models(
     assert calls == [cfg]
 
 
+def test_dispatches_benchmark_command_before_experiment(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import token_mixer.cli as cli
+    import token_mixer.pipelines.benchmark as benchmark
+
+    expected = object()
+    calls = []
+
+    def runner(cfg):
+        calls.append(cfg)
+        return expected
+
+    monkeypatch.setattr(benchmark, "run_benchmark", runner)
+    cfg = OmegaConf.create(
+        {"command": "benchmark", "experiment": {"name": "mod_a"}}
+    )
+
+    assert cli._dispatch(cfg) is expected
+    assert calls == [cfg]
+
+
 def test_run_saves_composed_config_dispatches_and_preserves_working_directory(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
@@ -182,6 +241,56 @@ def test_run_writes_completion_artifacts_after_successful_dispatch(
     assert (tmp_path / "config.yaml").is_file()
     assert (tmp_path / "metrics.json").is_file()
     assert (tmp_path / "provenance.json").is_file()
+
+
+def test_run_does_not_rewrite_pipeline_completion_artifacts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import token_mixer.cli as cli
+    from token_mixer.training.engine import FitResult
+
+    cfg = OmegaConf.create(
+        {
+            "runtime": "local",
+            "experiment": {"name": "mod_a"},
+            "tracking": {"enabled": False, "mode": "disabled"},
+        }
+    )
+    monkeypatch.setattr(cli, "_hydra_output_dir", lambda: tmp_path)
+    (tmp_path / "metrics.json").write_text("pipeline metrics\n", encoding="utf-8")
+    (tmp_path / "provenance.json").write_text("pipeline provenance\n", encoding="utf-8")
+    monkeypatch.setattr(cli, "_dispatch", lambda _cfg: FitResult(0.5, 1, []))
+
+    cli._run(cfg)
+
+    assert (tmp_path / "metrics.json").read_text(encoding="utf-8") == "pipeline metrics\n"
+    assert (tmp_path / "provenance.json").read_text(encoding="utf-8") == "pipeline provenance\n"
+
+
+def test_run_writes_failed_provenance_for_non_transfer_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import token_mixer.cli as cli
+
+    cfg = OmegaConf.create(
+        {
+            "runtime": "local",
+            "experiment": {"name": "mod_a"},
+            "tracking": {"enabled": False, "mode": "disabled"},
+        }
+    )
+    failure = ValueError("fixture training failure")
+    monkeypatch.setattr(cli, "_hydra_output_dir", lambda: tmp_path)
+    monkeypatch.setattr(cli, "_dispatch", lambda _cfg: (_ for _ in ()).throw(failure))
+
+    with pytest.raises(ValueError) as caught:
+        cli._run(cfg)
+
+    assert caught.value is failure
+    provenance = OmegaConf.load(tmp_path / "provenance.json")
+    assert provenance.status == "failed"
+    assert provenance.error == "fixture training failure"
+    assert not (tmp_path / "metrics.json").exists()
 
 
 def test_dispatch_rejects_unknown_experiment():

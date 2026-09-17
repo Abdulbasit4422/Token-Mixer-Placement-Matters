@@ -180,7 +180,7 @@ def test_brats_slice_dataset_returns_four_class_labels_and_configured_size(
     }
 
     dataset = BratsSliceDataset([case], config, training=False)
-    image, label = dataset[1]
+    image, label, case_id = dataset[1]
 
     assert len(dataset) == 5
     assert image.shape == (4, 4, 5)
@@ -188,6 +188,25 @@ def test_brats_slice_dataset_returns_four_class_labels_and_configured_size(
     assert label.dtype == np.uint8
     assert set(np.unique(label)).issubset({0, 1, 2, 3})
     assert label[0, 0] == 1
+    assert case_id == "CASE001"
+
+
+def test_brats_slice_dataset_exposes_case_id_without_changing_training_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    case = _make_fixture_case(tmp_path)
+    _patch_loader(monkeypatch, _make_fixture_volumes())
+
+    sample = BratsSliceDataset(
+        [case],
+        {"slice_axis": 0, "normalize": False},
+        training=False,
+    )[0]
+
+    assert len(sample) == 3
+    assert sample[2] == "CASE001"
+    assert sample[0].shape == (4, 6, 7)
+    assert sample[1].shape == (6, 7)
 
 
 def test_brats_slice_offsets_use_no_crop_padded_shape_on_configured_axis(
@@ -205,9 +224,10 @@ def test_brats_slice_offsets_use_no_crop_padded_shape_on_configured_axis(
     dataset = BratsSliceDataset([case], config, training=False)
 
     assert len(dataset) == 11
-    image, label = dataset[10]
+    image, label, case_id = dataset[10]
     assert image.shape == (4, 8, 16)
     assert label.shape == (8, 16)
+    assert case_id == "CASE001"
 
 
 def test_monai_adapter_is_optional():

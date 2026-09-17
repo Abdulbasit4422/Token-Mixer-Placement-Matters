@@ -8,7 +8,9 @@ SwinUNETR, TransUNet, and 2-D CNN denoising pretraining paths.
 Run commands from repository root. Runtime data, checkpoints, W&B files, and
 generated outputs stay outside reviewed source tree.
 
-For maintainer/researcher architecture and implementation guides, see [codebase/README.md](codebase/README.md).
+For maintainer/researcher architecture and implementation guides, see
+[codebase/README.md](codebase/README.md). Efficiency protocols and benchmark
+evidence are defined in [codebase/BENCHMARKING.md](codebase/BENCHMARKING.md).
 
 ## Quickstart
 
@@ -48,6 +50,7 @@ training is not a real-data experiment; neither is cloud/full training.
 | Config-only cloud dry run | `uv run python -m token_mixer --config-name cloud experiment=mod_b run=debug --cfg job` | Checks cloud paths, `device: cuda`, and debug overrides. Does not train. |
 | Package tests | `uv run pytest -q` | Runs unit, model, pipeline, and integration tests. |
 | Synthetic/debug harness | `uv run pytest tests/integration/test_synthetic_debug.py -q` | Creates temporary synthetic NIfTI/ImageFolder data and exercises forward, loss, backward, fit, checkpoints, metrics, and artifacts. No external dataset. |
+| Benchmark/schema contracts | `uv run pytest tests/evaluation/test_benchmark.py tests/integration/test_synthetic_debug.py -q` | Checks fixed-input benchmark schema, status handling, hashed case rows, and synthetic wiring. It is not hardware or quality evidence. |
 | CPU local debug | `uv run python -m token_mixer --config-name local experiment=mod_a run=debug device=cpu` | Runs package debug training on prepared `data/local` cases. Requires valid BraTS manifest. |
 | Syntax check | `uv run python -m compileall -q src tests` | Compiles package and test Python files. |
 
@@ -75,8 +78,8 @@ uv run python -m token_mixer
 | --- | --- |
 | `token_mixer.data` | BraTS case discovery and preparation, preprocessing, labels, datasets, and deterministic split manifests |
 | `token_mixer.models` | Tensor-only model constructors and adapters, including `models/metaunetr/` and optional external TransUNet integration |
-| `token_mixer.training` | Shared phase-based training loop, checkpoint persistence, completion artifacts, reproducibility state, and optional W&B tracking |
-| `token_mixer.evaluation` | Sliding-window inference, canonical Dice/HD95 metrics, and plots/overlays |
+| `token_mixer.training` | Shared phase-based training loop, checkpoint persistence, completion artifacts, reproducibility state, and W&B tracking boundary |
+| `token_mixer.evaluation` | Sliding-window inference, canonical Dice/HD95 metrics, efficiency measurement, benchmark schemas, and plots/overlays |
 | `token_mixer.pipelines` | Thin orchestration boundaries composing data, models, training, and evaluation |
 | `configs/` | Local/cloud profiles plus data, model, experiment, and debug/full run groups |
 
@@ -100,6 +103,11 @@ Package/runtime variables:
 
 MCP-only variables are not needed for package training and are intentionally
 omitted.
+
+Online W&B authentication accepts either `WANDB_API_KEY` or a matching entry in
+the standard user `.netrc` file for a W&B host. The package checks credential
+availability without printing or serializing its value. Offline and disabled
+tracking do not require credentials.
 
 `TRANSUNET_ROOT` and `TRANSUNET_PRETRAINED` are required assets for every
 non-injected TransUNet run, not optional runtime inputs. The package CLI does
@@ -397,8 +405,11 @@ selects `runtime: local`, uses automatic device selection, and defaults to
 
 `configs/cloud.yaml` resolves to `data/cloud/brats`, selects `runtime: cloud`,
 requests `device: cuda`, and defaults to `run: full` with no case limit. Stage
-or mount prepared data before launching it. Both profiles write to same
-repository-relative `outputs/` tree and default W&B to disabled.
+or mount prepared data before launching it. Local tracking is disabled by
+default; cloud training defaults to online W&B tracking in the approved
+project/group and requires an accepted credential source. These are composed
+configuration defaults, not evidence that cloud data, GPU training, or online
+write access has been exercised.
 
 Debug run has `batch_size: 1`, zero workers, `phase1_epochs: 1`,
 `phase2_epochs: 1`, and AMP disabled. Full run has `batch_size: 2`, eight
@@ -559,10 +570,19 @@ transfer fails before training, inspect failed-run provenance below.
 
 ## W&B tracking
 
-Both runtime profiles default to `tracking.enabled=false` and
-`tracking.mode=disabled`; no W&B run is initialized unless tracking is enabled.
-Local metrics and provenance are still written after successful training. W&B
-supports three modes.
+Local profile defaults to `tracking.enabled=false` and
+`tracking.mode=disabled`; cloud training defaults to online W&B in
+`aniekanetimudo/token-mixer-placement-matters` with group
+`token-mixer-brats-seed42`. No local W&B run is initialized unless tracking is
+enabled. Local metrics, provenance, and checkpoints are still written after
+successful training. W&B supports three modes:
+
+- `disabled`: no-op tracker; W&B is not imported, while local artifacts remain
+  enabled.
+- `offline`: W&B run files are written locally without network access or a
+  credential.
+- `online`: W&B initializes the configured cloud run after credential
+  discovery.
 
 Offline, no credential required:
 
@@ -570,7 +590,8 @@ Offline, no credential required:
 uv run python -m token_mixer --config-name local experiment=mod_a run=debug device=cpu tracking.enabled=true tracking.mode=offline
 ```
 
-Online, credential required:
+Online, credential required from `WANDB_API_KEY` or a matching standard
+`.netrc` entry:
 
 ```bash
 export WANDB_API_KEY="<your-wandb-key>"
@@ -583,12 +604,45 @@ PowerShell equivalent for credential:
 $env:WANDB_API_KEY = "<your-wandb-key>"
 ```
 
-Tracker refuses online mode without `WANDB_API_KEY`. Offline files and local
-W&B caches are ignored under `outputs/wandb` and `wandb/`. The profile fields
-`tracking.log_every_steps`, `tracking.log_images`, and
-`tracking.log_checkpoints` are currently unused by the tracker; changing them
-does not enable step-frequency, image, or checkpoint logging. Do not commit
-credentials or W&B runtime files.
+Tracker refuses online mode without either accepted credential source. Offline
+files and local W&B caches are ignored under `outputs/wandb` and `wandb/`.
+Completed epochs always log scalar history regardless of `log_every_steps`;
+`tracking.log_images` gates segmentation snapshots, and checkpoint/artifact
+logging occurs during pipeline finalization. Credential values and W&B runtime
+files must not enter Git.
+
+See [codebase/BENCHMARKING.md](codebase/BENCHMARKING.md) for metric
+namespaces, snapshot cadence, artifact lineage, and failure semantics.
+
+### Explicit benchmark runs
+
+Benchmarking is a separate `command: benchmark` path. It restores one selected
+checkpoint, writes `benchmark.json`, and uses a separate W&B `job_type:
+benchmark` run when tracking is enabled. It never reuses training's
+`global_step` stream or silently selects a mutable checkpoint alias.
+
+Exactly one source is required:
+
+- `benchmark.source_checkpoint`: repository-relative checkpoint file, or a
+  checkpoint directory whose `best.pt` is selected. Checkpoint metadata is
+  validated before measurement.
+- `benchmark.source_artifact`: immutable W&B reference qualified by a version
+  such as `<entity>/<project>/<artifact>:v0`, or by a supported digest such as
+  `<entity>/<project>/<artifact>@sha256:<64-hex-digits>`. Mutable aliases such as
+  `:latest` and `:production` are rejected.
+
+Example local-source invocation (requires prepared data and an existing
+checkpoint; it is not run by the synthetic smoke):
+
+```bash
+uv run python -m token_mixer --config-name benchmark experiment=mod_a run=debug device=cpu tracking.enabled=false tracking.mode=disabled benchmark.source_checkpoint=outputs/<run>/checkpoints/best.pt benchmark.protocol=native_3d_full_volume
+```
+
+The serialized benchmark schema is one atomic JSON object with
+`schema_version`, `summary`, `rows`, and `provenance`. Model rows contain
+static-cost and inference fields; case rows contain protocol identity and
+hashed case identifiers only. `source_train_run_id` is optional linkage; the
+selected local checkpoint or immutable artifact remains the source identity.
 
 ## Outputs, checkpoints, and provenance
 
@@ -604,18 +658,26 @@ outputs/
     |   |-- best.pt
     |   |-- last.pt
     |   `-- <phase>_resume.pt
+    |-- segmentation_snapshots/         (optional, explicitly enabled)
+    |-- benchmark.json                    (explicit benchmark runs only)
     |-- encoder_best.pth                 (CNN pretraining only)
     `-- cnn_reconstruction_grid.png     (optional CNN visualization)
 ```
 
 `config.yaml` is composed Hydra configuration saved before dispatch.
 `metrics.json` is written after pipeline returns successful `FitResult` and
-contains best-checkpoint values and validation history. Segmentation pipelines
-also write held-out test metrics; CNN pretraining has no test loader and writes
-`"test_metrics": null`.
+contains best-checkpoint values, validation history, and epoch-boundary
+efficiency/power fields. Segmentation pipelines also write held-out test
+metrics; CNN pretraining has no test loader and writes `"test_metrics": null`.
 `provenance.json` records code version, runtime, experiment, model metadata,
-seed, device, tracking mode, manifest hash, monitor direction, and source
-checkpoint where applicable. Non-finite JSON metric values become `null`.
+seed, device, tracking mode, manifest hash, monitor direction, timing scope,
+protocol, early-stopping state, and source checkpoint where applicable.
+The timing scope is nested under `timing`; current training records use
+`timing.timing_scope: process_segment`. Early-stopping details are retained in
+the metrics `early_stopping` section and provenance metadata, while checkpoint
+state uses the corresponding underscored fields. Persisted case identifiers
+are replaced by 16-character SHA-256-derived hashes. Non-finite JSON metric
+values become `null`.
 
 ### Checkpoint semantics
 
@@ -669,14 +731,16 @@ destination validation improves, destination `best.pt` is replaced and that
 improvement is retained. Source checkpoint and source run are not mutated.
 Warm start initializes model weights only and starts fresh best-metric tracking.
 
-### Failed transfer provenance
+### Failed-run provenance
 
-When requested ResUNet3D ImageNet transfer fails before fit, CLI preserves
-`config.yaml` and writes failed `provenance.json` containing `status: failed`,
-error, transfer source/status/counts, model metadata, and tracking context. It
-does not fabricate `metrics.json` or training metrics. This artifact is
-specific to transfer failure path; missing TransUNet assets produce validation
-error and do not constitute validated external integration.
+On a dispatch exception, CLI preserves `config.yaml` and attempts to write a
+failed `provenance.json` containing `status: failed`, bounded error text, model
+and run identity where available, and tracking context. Requested ResUNet3D
+ImageNet transfer additionally contributes transfer source/status/counts.
+Failure provenance does not fabricate `metrics.json` or training metrics, and a
+failed artifact is not evidence of a completed experiment. Missing TransUNet
+assets likewise remain a failed preflight; they do not validate an external
+checkout or pretrained integration.
 
 ## Local metrics and results analysis
 
@@ -719,7 +783,7 @@ With no completed runs it reports no saved metric files.
 | CUDA unavailable | Use local profile with `device=cpu` for development, or provision approved CUDA GPU before cloud profile. |
 | ResUNet transfer fails | Install `--extra research`; set both `model.imagenet_transfer.enabled=true` and `model.imagenet_transfer.download=true` for CLI timm loading, or inspect failed `provenance.json`. |
 | Resume compatibility error | Resume with same experiment, model, manifest, loss, optimizer, scheduler, monitor direction, and compatible phase plan. Use `run.warm_start` for intentional model-only initialization. |
-| Online W&B error | Export `WANDB_API_KEY`, or use `tracking.mode=offline`/disabled. |
+| Online W&B error | Export `WANDB_API_KEY`, provide a matching standard `.netrc` entry, or use `tracking.mode=offline`/disabled. |
 | Jupyter script does not start | Git Bash: copy example, replace quoted token, and run `./run-jup.sh`; PowerShell: use the documented `uv run jupyter lab` command instead. |
 | `metrics.json` is absent | Pipeline did not return successful `FitResult`; inspect `config.yaml`, checkpoints, and any failed `provenance.json`. |
 
@@ -749,17 +813,11 @@ staging but are not security boundary. Inspect generated manifests before
 sharing, use approved access controls, and verify `git status` before staging.
 See [`data/README.md`](data/README.md) for detailed data contract.
 
-## Current verification snapshot
+## Verification boundary
 
-Current repository verification reports:
-
-```text
-uv run pytest -q: 408 passed, 1 skipped
-```
-
-One skip remains environment-gated: the external TransUNet integration. The
-filesystem symlink checks run in the current Windows environment. This snapshot
-does **not** claim a real BraTS-data run, full-dataset/cloud training, or
-validation of an external TransUNet checkout and pretrained asset. No such run
-is launched by README commands unless user explicitly executes it after
-approval.
+Use the validation ladder for current test counts. Synthetic and benchmark
+contract checks cover wiring, schema, and explicit unavailable/fixture status;
+they do **not** claim real BraTS quality, hardware performance, full-dataset or
+cloud training, or validation of an external TransUNet checkout and pretrained
+asset. Full cloud commands require explicit approval and are never launched by
+README instructions automatically.

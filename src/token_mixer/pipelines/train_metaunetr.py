@@ -20,13 +20,16 @@ from token_mixer.evaluation.inference import evaluate_full_volumes
 from token_mixer.models.metaunetr.variants import build_metaunetr
 from token_mixer.pipelines._baseline_common import (
     _copy_resume_best,
+    _finalize_training_run,
     _flatten_training_config,
+    _finish_tracker,
     _loader_parts,
     _limit_cases,
     _max_cases,
     _invoke_fit,
     _result_with_test_metrics,
     _restore_best,
+    _write_pipeline_failure,
     build_loss as _build_shared_loss,
     resume_path,
     warm_start_path,
@@ -932,45 +935,81 @@ def run_metaunetr(cfg: DictConfig | Mapping[str, Any]) -> FitResult:
         _copy_resume_best(checkpoints, resume)
     tracking_config = _plain(_first_value(cfg, (("tracking",),), default={}))
     tracker = create_tracker(_mapping(tracking_config, "tracking"), run_config)
-    result = _invoke_fit(
-        fit,
-        (
-            model,
-            train_loader,
-            val_loader,
-            loss_fn,
-            evaluator,
-            phases,
-            run_config,
-            tracker,
-            checkpoints,
-        ),
-        resume=resume,
-        warm_start=warm_start,
-        loader_generator=generator,
-    )
-    if not isinstance(result, FitResult):
-        raise TypeError("shared training engine must return FitResult")
-    if test_loader is None:
-        return result
-    if checkpoints is None:
-        raise ValueError("MetaUNETR test evaluation requires enabled checkpointing")
+    try:
+        result = _invoke_fit(
+            fit,
+            (
+                model,
+                train_loader,
+                val_loader,
+                loss_fn,
+                evaluator,
+                phases,
+                run_config,
+                tracker,
+                checkpoints,
+            ),
+            resume=resume,
+            warm_start=warm_start,
+            loader_generator=generator,
+        )
+        if not isinstance(result, FitResult):
+            raise TypeError("shared training engine must return FitResult")
+        # Preserve legacy direct fixtures that intentionally omit both a test
+        # loader and checkpoint/output configuration.  Real runs always have
+        # checkpointing enabled and use validation as their final split when
+        # no held-out test loader is supplied.
+        if test_loader is None and checkpoints is None:
+            return result
+        if checkpoints is None:
+            raise ValueError("MetaUNETR final evaluation requires enabled checkpointing")
 
-    _restore_best(
-        model,
-        checkpoints,
-        expected_metadata=_checkpoint_metadata(run_config, phases),
-    )
-    test_evaluator = _first_value(
-        cfg,
-        (("test_evaluator",), ("evaluation", "test_evaluator")),
-    )
-    if not callable(test_evaluator):
-        test_evaluator = evaluator
-    test_metrics = test_evaluator(model, test_loader)
-    if not isinstance(test_metrics, Mapping):
-        raise TypeError("test evaluator must return a mapping of scalar metrics")
-    return _result_with_test_metrics(result, test_metrics, metadata)
+        _restore_best(
+            model,
+            checkpoints,
+            expected_metadata=_checkpoint_metadata(run_config, phases),
+        )
+        if test_loader is None:
+            evaluation_loader = val_loader
+            test_evaluator = _first_value(
+                cfg,
+                (("validation_evaluator",), ("evaluation", "validation_evaluator")),
+            )
+            if not callable(test_evaluator):
+                test_evaluator = evaluator
+            protocol = "native_3d_validation"
+            evaluation_split = "validation"
+        else:
+            evaluation_loader = test_loader
+            test_evaluator = _first_value(
+                cfg,
+                (("test_evaluator",), ("evaluation", "test_evaluator")),
+            )
+            if not callable(test_evaluator):
+                test_evaluator = evaluator
+            protocol = "native_3d_full_volume"
+            evaluation_split = "test"
+        test_metrics = test_evaluator(model, evaluation_loader)
+        if not isinstance(test_metrics, Mapping):
+            raise TypeError("test evaluator must return a mapping of scalar metrics")
+        final_metadata = dict(metadata)
+        final_metadata.update(
+            {"protocol": protocol, "evaluation_split": evaluation_split}
+        )
+        result = _result_with_test_metrics(result, test_metrics, final_metadata)
+        _finalize_training_run(
+            cfg,
+            tracker,
+            result,
+            checkpoints,
+            protocol=protocol,
+        )
+        return result
+    except BaseException as error:
+        _write_pipeline_failure(cfg, error, metadata)
+        raise
+    finally:
+        _finish_tracker(tracker)
 
 
 __all__ = ["VALID_VARIANTS", "build_loaders", "run_metaunetr"]

@@ -25,6 +25,18 @@ tracking:
   log_images: false
   log_checkpoints: false
   directory: ${paths.output_root}/wandb
+visualization:
+  segmentation_snapshots:
+    enabled: true
+    snapshot_interval_epochs: 10
+    include_best: true
+    include_final: true
+    splits: [train, val]
+    sample_count: 1
+    axis: 0
+    image_channel: 3
+    local_enabled: false
+    output_dir: ${paths.experiment_output}/segmentation_snapshots
 hydra:
   run:
     dir: ${paths.experiment_output}

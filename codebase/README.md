@@ -14,13 +14,14 @@ new maintainer:
 3. [Configuration](CONFIG.md) explains Hydra composition, profiles, selectors, and overrides.
 4. [Training](TRAINING.md) explains phases, checkpoints, resume, tracking, and artifacts.
 5. [Evaluation](EVALUATE.md) explains inference, metrics, spacing, and visualizations.
-6. [Reproducibility](REPRODUCIBILITY.md) explains seeds, deterministic execution, and provenance.
-7. [Testing](TESTING.md) maps contract tests to the behaviors they protect.
-8. [Notebooks](NOTEBOOKS.md) explains exploratory checks and the Jupytext source-of-truth rule.
-9. [Model guides](#model-guides) explain architecture-specific tensor paths and experiment choices.
-10. [Maintenance](MAINTENANCE.md) is the change checklist for source, tests, guides, and SVGs.
+6. [Benchmarking](BENCHMARKING.md) explains fixed-input efficiency protocols, lineage, and evidence boundaries.
+7. [Reproducibility](REPRODUCIBILITY.md) explains seeds, deterministic execution, and provenance.
+8. [Testing](TESTING.md) maps contract tests to the behaviors they protect.
+9. [Notebooks](NOTEBOOKS.md) explains exploratory checks and the Jupytext source-of-truth rule.
+10. [Model guides](#model-guides) explain architecture-specific tensor paths and experiment choices.
+11. [Maintenance](MAINTENANCE.md) is the change checklist for source, tests, guides, and SVGs.
 
-All fourteen guide files listed below are active reviewed guides. Links stay
+All fifteen guide files listed below are active reviewed guides. Links stay
 here as the canonical navigation surface; each guide owns its implementation
 details.
 
@@ -36,8 +37,12 @@ python -m token_mixer
   -> src/token_mixer/cli.py::_dispatch
   -> selected pipeline runner
   -> data / models / evaluation / training
-  -> FitResult and run artifacts
+  -> FitResult and training artifacts
 ```
+
+For an explicit benchmark command, `_dispatch` branches to
+`pipelines/benchmark.py::run_benchmark`, returning `BenchmarkResult` and one
+`benchmark.json` rather than entering the training engine.
 
 `_dispatch` is the active selector boundary. It maps
 `cnn_denoising_pretrain` to the CNN pretraining runner,
@@ -69,6 +74,7 @@ implementation details into another guide.
 | [CONFIG.md](CONFIG.md) | Hydra groups, profiles, experiment selectors, run settings, and output resolution |
 | [TRAINING.md](TRAINING.md) | Engine, phases, pipeline handoff, checkpoints, resume, warm start, tracking, and artifacts |
 | [EVALUATE.md](EVALUATE.md) | Inference, spacing, Dice/HD95 metrics, logit conversion, and visualizations |
+| [BENCHMARKING.md](BENCHMARKING.md) | Fixed-input efficiency protocols, measurement status, benchmark serialization, and training/benchmark lineage |
 | [REPRODUCIBILITY.md](REPRODUCIBILITY.md) | Seeds, deterministic settings, manifest identity, provenance, and run separation |
 | [TESTING.md](TESTING.md) | Test taxonomy, contract seams, optional skips, and validation commands |
 | [NOTEBOOKS.md](NOTEBOOKS.md) | Notebook purposes, execution order, and one-way Jupytext synchronization |

@@ -452,10 +452,13 @@ receiving a successful `FitResult`. The provenance payload includes model and
 experiment identity, model configuration, seed, device, manifest hash when
 available, monitor direction, source checkpoint, runtime, and tracking settings.
 
-The shipped `local` and `cloud` profiles disable tracking. If enabled, disabled
-mode remains a no-op, offline mode initializes W&B without an online credential,
-and online mode requires `WANDB_API_KEY` before training. Tracking mode does not
-change the SwinUNETR tensor or metric contract.
+The shipped local profile defaults to disabled tracking, while the cloud profile
+defaults to online W&B in the approved project namespace. Disabled mode remains
+a no-op; offline mode needs no online credential; online mode accepts
+`WANDB_API_KEY` or a matching standard `.netrc` entry before training. Shared
+tracking lifecycle, image gates, benchmark separation, and local evidence rules
+belong to [TRAINING.md](TRAINING.md) and [BENCHMARKING.md](BENCHMARKING.md).
+Tracking mode does not change the SwinUNETR tensor or metric contract.
 
 ## Environment-Gated Behavior
 

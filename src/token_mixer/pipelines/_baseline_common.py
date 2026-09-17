@@ -31,7 +31,13 @@ from token_mixer.evaluation.metrics import (
     hd95_excluded_by_region,
     logits_to_regions,
 )
+from token_mixer.privacy import redact_case_identifiers
 from token_mixer.reproducibility import seed_everything, seed_worker
+from token_mixer.training.artifacts import (
+    _json_safe,
+    write_failed_run_artifact,
+    write_run_artifacts,
+)
 from token_mixer.training.checkpoints import CheckpointManager
 from token_mixer.training.engine import (
     FitResult,
@@ -80,6 +86,265 @@ def _first_configured(
         if value is not _MISSING:
             return value
     return default
+
+
+def _output_dir(cfg: Mapping[str, Any]) -> Path:
+    """Resolve the durable run directory shared by all training pipelines."""
+    configured = _first_value(
+        cfg,
+        (
+            ("paths", "experiment_output"),
+            ("paths", "output_dir"),
+            ("experiment", "output_dir"),
+            ("experiment", "output_root"),
+            ("experiment_output",),
+            ("output_dir",),
+            ("paths", "output_root"),
+            ("output_root",),
+        ),
+    )
+    if configured is not None:
+        return Path(configured)
+
+    # Older direct pipeline fixtures configured only checkpoint_dir.  Keep
+    # those fixtures usable without changing the preferred Hydra aliases.
+    checkpoint_root = _first_value(
+        cfg,
+        (
+            ("checkpoints", "root"),
+            ("checkpoints", "directory"),
+            ("paths", "checkpoint_dir"),
+            ("paths", "checkpoint_root"),
+            ("checkpoint_dir",),
+        ),
+    )
+    if checkpoint_root is not None:
+        return Path(checkpoint_root).parent
+    raise ValueError("training pipelines require a configured experiment output path")
+
+
+def _namespace_metrics(
+    prefix: str, metrics: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Keep raw quality keys while adding stable W&B namespace aliases."""
+    if not isinstance(metrics, Mapping):
+        raise TypeError("metrics must be a mapping")
+    namespace = str(prefix).strip().strip("/")
+    if not namespace:
+        raise ValueError("metric namespace must be non-empty")
+
+    result = {str(key): value for key, value in metrics.items()}
+    for raw_key, value in metrics.items():
+        key = str(raw_key)
+        if "/" in key:
+            continue
+        canonical = key
+        lowered = key.lower()
+        for region in REGION_NAMES:
+            region_lower = region.lower()
+            if lowered in {f"{region_lower}_dice", f"dice_{region_lower}"}:
+                canonical = f"dice_{region}"
+                break
+            if lowered in {f"{region_lower}_hd95", f"hd95_{region_lower}"}:
+                canonical = f"hd95_{region}"
+                break
+            if lowered in {
+                f"{region_lower}_hd95_excluded",
+                f"hd95_excluded_{region_lower}",
+            }:
+                canonical = f"hd95_excluded_{region}"
+                break
+        else:
+            if lowered in {"mean_dice", "avg_dice"}:
+                canonical = "avg_dice"
+            elif lowered in {"mean_hd95", "avg_hd95"}:
+                canonical = "avg_hd95"
+            elif lowered == "hd95_excluded_cases":
+                canonical = "hd95_excluded_cases"
+        result[f"{namespace}/{canonical}"] = value
+    return result
+
+
+def _write_composed_config(path: Path, cfg: Mapping[str, Any]) -> None:
+    """Persist a readable config without requiring W&B or Hydra runtime state."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        from omegaconf import OmegaConf
+
+        config = cfg if OmegaConf.is_config(cfg) else OmegaConf.create(_plain(cfg))
+        OmegaConf.save(config=config, f=str(path), resolve=False)
+        return
+    except Exception:
+        # Direct tests may inject callables or torch objects that OmegaConf
+        # deliberately rejects.  Safe scalar conversion still leaves useful
+        # provenance without making finalization depend on those objects.
+        import yaml
+
+        safe_config = _json_safe(_plain(cfg))
+        path.write_text(
+            yaml.safe_dump(safe_config, sort_keys=False),
+            encoding="utf-8",
+        )
+
+
+def _finish_tracker(tracker: Any) -> None:
+    finish = getattr(tracker, "finish", None)
+    if not callable(finish):
+        return
+    try:
+        finish()
+    except BaseException:
+        # A tracker shutdown failure must not replace training/evaluation
+        # failures, and disabled/custom test trackers need not implement it.
+        pass
+
+
+def _write_pipeline_failure(
+    cfg: Mapping[str, Any], error: BaseException, metadata: Mapping[str, Any] | None = None
+) -> None:
+    """Persist failed provenance while retaining the original exception."""
+    try:
+        output_dir = _output_dir(cfg)
+        write_failed_run_artifact(output_dir, cfg, error, metadata)
+    except BaseException as artifact_error:
+        try:
+            error.add_note(f"failed to persist failed-run provenance: {artifact_error}")
+        except BaseException:
+            pass
+
+
+def _finalize_training_run(
+    cfg: Mapping[str, Any],
+    tracker: Any,
+    result: FitResult,
+    checkpoints: CheckpointManager | None,
+    *,
+    protocol: str,
+    extra_files: Iterable[Path | str] | Mapping[str, Path | str] = (),
+) -> dict[str, Path]:
+    """Write durable completion evidence and publish it through ``Tracker``."""
+    if not isinstance(cfg, Mapping):
+        raise TypeError("run configuration must be a mapping")
+    if not isinstance(result, FitResult):
+        raise TypeError("run completion must return FitResult")
+
+    output_dir = _output_dir(cfg)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    config_path = output_dir / "config.yaml"
+    _write_composed_config(config_path, cfg)
+    artifact_metadata = dict(result.metadata or {})
+    artifact_metadata.setdefault("protocol", protocol)
+    configured_split = str(artifact_metadata.get("evaluation_split", "")).strip().lower()
+    if configured_split in {"val", "validation"}:
+        prefix = "val"
+    elif configured_split == "test":
+        prefix = "test"
+    else:
+        prefix = "val" if str(protocol).startswith("cnn_denoising") else "test"
+    artifact_metadata.setdefault("evaluation_split", prefix)
+    artifact_result = FitResult(
+        result.best_metric,
+        result.best_epoch,
+        result.history,
+        result.test_metrics,
+        artifact_metadata,
+    )
+    artifact_paths = write_run_artifacts(output_dir, cfg, artifact_result)
+    paths: dict[str, Path] = {"config": config_path, **artifact_paths}
+
+    files: dict[str, Path] = {
+        "config.yaml": config_path,
+        "metrics.json": artifact_paths["metrics"],
+        "provenance.json": artifact_paths["provenance"],
+    }
+    best_path = (
+        checkpoints.root / "best.pt"
+        if checkpoints is not None
+        else output_dir / "best.pt"
+    )
+    if best_path.is_file():
+        files["best.pt"] = best_path
+        paths["best"] = best_path
+
+    if isinstance(extra_files, Mapping):
+        extra_items = extra_files.items()
+    elif extra_files is None:
+        extra_items = ()
+    else:
+        def extra_item(value: Any) -> tuple[str, Any]:
+            if isinstance(value, (tuple, list)) and len(value) == 2:
+                return str(value[0]), value[1]
+            return Path(value).name, value
+
+        extra_items = (extra_item(item) for item in extra_files if item is not None)
+    for name, value in extra_items:
+        if value is None:
+            continue
+        path = Path(value)
+        if not path.is_file():
+            continue
+        artifact_name = str(name)
+        files[artifact_name] = path
+        paths[artifact_name] = path
+
+    summary = _namespace_metrics(prefix, result.test_metrics or {})
+    summary.update(
+        {
+            "best_metric": result.best_metric,
+            "best_epoch": result.best_epoch,
+            "protocol": protocol,
+            "evaluation_split": prefix,
+        }
+    )
+    timing_keys = {
+        "timing_scope",
+        "segment_elapsed_seconds",
+        "cumulative_train_seconds",
+        "cumulative_validation_seconds",
+        "cumulative_elapsed_seconds",
+        "measured_train_seconds",
+        "measured_validation_seconds",
+        "measured_elapsed_seconds",
+        "time_to_best_seconds",
+        "time_to_best_scope",
+    }
+    for key, value in (result.metadata or {}).items():
+        key = str(key)
+        if (
+            key in timing_keys
+            or key.startswith(("train/", "val/", "run/", "power/"))
+        ):
+            summary[key] = value
+    summary_method = getattr(tracker, "log_summary", None)
+    if callable(summary_method):
+        summary_method(_json_safe(redact_case_identifiers(summary)))
+
+    table_method = getattr(tracker, "log_table", None)
+    if callable(table_method):
+        redacted_history = redact_case_identifiers(result.history)
+        columns: list[str] = []
+        for record in redacted_history:
+            for key in record:
+                key = str(key)
+                if key not in columns:
+                    columns.append(key)
+        if not columns:
+            columns = ["epoch"]
+        rows = [
+            [_json_safe(record.get(column)) for column in columns]
+            for record in redacted_history
+        ]
+        table_method("training/history", columns, rows)
+
+    artifact_method = getattr(tracker, "log_artifact", None)
+    if callable(artifact_method):
+        artifact_method(
+            "model",
+            files,
+            artifact_type="model",
+            aliases=("best", "latest"),
+        )
+    return paths
 
 
 def _plain(value: Any) -> Any:
@@ -676,8 +941,37 @@ def build_volume_evaluator(
         raise ValueError("sw_batch_size must be at least one")
     overlap = _volume_overlap(cfg)
     evaluation_device = effective_device(cfg) if device is None else device
+    collect_case_records = bool(
+        _first_value(
+            cfg,
+            (
+                ("inference", "collect_case_records"),
+                ("evaluation", "collect_case_records"),
+                ("benchmark", "collect_case_records"),
+                ("collect_case_records",),
+            ),
+            default=False,
+        )
+    )
+    measure_latency = bool(
+        _first_value(
+            cfg,
+            (
+                ("inference", "measure_latency"),
+                ("evaluation", "measure_latency"),
+                ("benchmark", "measure_latency"),
+                ("measure_latency",),
+            ),
+            default=False,
+        )
+    )
 
     def evaluator(model: nn.Module, loader: Iterable[Any]) -> Mapping[str, Any]:
+        kwargs: dict[str, Any] = {"default_spacing": spacing}
+        if collect_case_records:
+            kwargs["collect_case_records"] = True
+        if measure_latency:
+            kwargs["measure_latency"] = True
         return evaluate_full_volumes(
             model,
             loader,
@@ -685,7 +979,7 @@ def build_volume_evaluator(
             sw_batch_size,
             overlap,
             evaluation_device,
-            default_spacing=spacing,
+            **kwargs,
         )
 
     return evaluator
@@ -1118,6 +1412,8 @@ def _invoke_fit(
         kwargs["warm_start"] = warm_start
     if _accepts_keyword(fit_fn, "loader_generator"):
         kwargs["loader_generator"] = loader_generator
+    if _accepts_keyword(fit_fn, "finish_tracker"):
+        kwargs["finish_tracker"] = False
     return fit_fn(*args, **kwargs)
 
 
@@ -1227,38 +1523,59 @@ def run_3d_baseline(
     if resume is not None:
         _copy_resume_best(checkpoints, resume)
     tracker = tracker_builder(_tracking_config(cfg), run_config)
-    evaluator = evaluator_builder(cfg, device)
-    loss_fn = loss_builder(cfg)
-    phases = phases_builder(cfg)
-    result = _invoke_fit(
-        fit_fn,
-        (
+    try:
+        evaluator = evaluator_builder(cfg, device)
+        loss_fn = loss_builder(cfg)
+        phases = phases_builder(cfg)
+        result = _invoke_fit(
+            fit_fn,
+            (
+                model,
+                train_loader,
+                val_loader,
+                loss_fn,
+                evaluator,
+                phases,
+                run_config,
+                tracker,
+                checkpoints,
+            ),
+            resume=resume,
+            warm_start=warm_start,
+            loader_generator=generator,
+        )
+        _restore_best(
             model,
-            train_loader,
-            val_loader,
-            loss_fn,
-            evaluator,
-            phases,
-            run_config,
-            tracker,
             checkpoints,
-        ),
-        resume=resume,
-        warm_start=warm_start,
-        loader_generator=generator,
-    )
-    _restore_best(
-        model,
-        checkpoints,
-        expected_metadata=_checkpoint_metadata(run_config, phases),
-    )
-    test_evaluator = _first_value(cfg, (("test_evaluator",), ("evaluation", "test_evaluator")))
-    if not callable(test_evaluator):
-        test_evaluator = evaluator
-    test_metrics = test_evaluator(model, test_loader)
-    if not isinstance(test_metrics, Mapping):
-        raise TypeError("test evaluator must return a mapping of scalar metrics")
-    return _result_with_test_metrics(result, test_metrics, metadata)
+            expected_metadata=_checkpoint_metadata(run_config, phases),
+        )
+        test_evaluator = _first_value(
+            cfg, (("test_evaluator",), ("evaluation", "test_evaluator"))
+        )
+        if not callable(test_evaluator):
+            test_evaluator = evaluator
+        test_metrics = test_evaluator(model, test_loader)
+        if not isinstance(test_metrics, Mapping):
+            raise TypeError("test evaluator must return a mapping of scalar metrics")
+        protocol = "native_3d_full_volume"
+        final_metadata = dict(metadata)
+        final_metadata.update(
+            {"protocol": protocol, "evaluation_split": "test"}
+        )
+        result = _result_with_test_metrics(result, test_metrics, final_metadata)
+        _finalize_training_run(
+            cfg,
+            tracker,
+            result,
+            checkpoints,
+            protocol=protocol,
+        )
+        return result
+    except BaseException as error:
+        _write_pipeline_failure(cfg, error, metadata)
+        raise
+    finally:
+        _finish_tracker(tracker)
 
 
 def run_2d_baseline(
@@ -1317,42 +1634,66 @@ def run_2d_baseline(
     if resume is not None:
         _copy_resume_best(checkpoints, resume)
     tracker = tracker_builder(_tracking_config(cfg), run_config)
-    evaluator = evaluator_builder(cfg, device)
-    loss_fn = loss_builder(cfg)
-    phases = phases_builder(cfg)
-    result = _invoke_fit(
-        fit_fn,
-        (
+    try:
+        evaluator = evaluator_builder(cfg, device)
+        loss_fn = loss_builder(cfg)
+        phases = phases_builder(cfg)
+        result = _invoke_fit(
+            fit_fn,
+            (
+                model,
+                train_loader,
+                val_loader,
+                loss_fn,
+                evaluator,
+                phases,
+                run_config,
+                tracker,
+                checkpoints,
+            ),
+            resume=resume,
+            warm_start=warm_start,
+            loader_generator=generator,
+        )
+        _restore_best(
             model,
-            train_loader,
-            val_loader,
-            loss_fn,
-            evaluator,
-            phases,
-            run_config,
-            tracker,
             checkpoints,
-        ),
-        resume=resume,
-        warm_start=warm_start,
-        loader_generator=generator,
-    )
-    _restore_best(
-        model,
-        checkpoints,
-        expected_metadata=_checkpoint_metadata(run_config, phases),
-    )
-    test_evaluator = _first_value(cfg, (("test_evaluator",), ("evaluation", "test_evaluator")))
-    if not callable(test_evaluator):
-        test_evaluator = evaluator
-    test_metrics = test_evaluator(model, test_loader)
-    if not isinstance(test_metrics, Mapping):
-        raise TypeError("test evaluator must return a mapping of scalar metrics")
-    return _result_with_test_metrics(result, test_metrics, metadata)
+            expected_metadata=_checkpoint_metadata(run_config, phases),
+        )
+        test_evaluator = _first_value(
+            cfg, (("test_evaluator",), ("evaluation", "test_evaluator"))
+        )
+        if not callable(test_evaluator):
+            test_evaluator = evaluator
+        test_metrics = test_evaluator(model, test_loader)
+        if not isinstance(test_metrics, Mapping):
+            raise TypeError("test evaluator must return a mapping of scalar metrics")
+        protocol = "transunet_2d_slice"
+        final_metadata = dict(metadata)
+        final_metadata.update(
+            {"protocol": protocol, "evaluation_split": "test"}
+        )
+        result = _result_with_test_metrics(result, test_metrics, final_metadata)
+        _finalize_training_run(
+            cfg,
+            tracker,
+            result,
+            checkpoints,
+            protocol=protocol,
+        )
+        return result
+    except BaseException as error:
+        _write_pipeline_failure(cfg, error, metadata)
+        raise
+    finally:
+        _finish_tracker(tracker)
 
 
 __all__ = [
     "LoaderBundle",
+    "_finalize_training_run",
+    "_namespace_metrics",
+    "_output_dir",
     "architecture_metadata",
     "build_checkpoints",
     "build_loss",

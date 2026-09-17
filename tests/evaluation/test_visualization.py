@@ -7,6 +7,8 @@ import token_mixer.evaluation.visualization as visualization
 from token_mixer.evaluation.visualization import (
     blend_overlay,
     plot_metric_history,
+    region_aware_slice_indices,
+    render_slice_visualization,
     save_slice_visualization,
 )
 
@@ -141,3 +143,62 @@ def test_visualization_functions_write_only_requested_output_paths(tmp_path: Pat
     assert metrics_path.is_file()
     assert overlay_path.stat().st_size > 0
     assert metrics_path.stat().st_size > 0
+
+
+def test_region_aware_slice_selection_covers_regions_deterministically():
+    target = np.zeros((3, 4, 3, 2), dtype=np.float32)
+    target[0, 0, 0, 0] = 1.0
+    target[1, 1, 0, 0] = 1.0
+    target[2, 2, 0, 0] = 1.0
+
+    indices = region_aware_slice_indices(target, slice_axis=0)
+
+    assert indices == (0, 1, 2)
+    assert indices == region_aware_slice_indices(target, slice_axis=0)
+
+
+def test_render_slice_visualization_contains_rgb_region_preview():
+    image = np.ones((4, 2, 2, 2), dtype=np.float32)
+    target = np.zeros((3, 2, 2, 2), dtype=np.float32)
+    prediction = np.zeros_like(target)
+    target[:, 0, 0, 0] = 1.0
+    prediction[:, 0, 0, 0] = 1.0
+
+    rendered = render_slice_visualization(
+        image,
+        target,
+        prediction,
+        slice_index=(0, 1),
+        image_channel=3,
+        slice_axis=0,
+    )
+
+    assert rendered.ndim == 3
+    assert rendered.shape[-1] == 3
+    assert rendered.dtype == np.uint8
+
+
+def test_save_validates_malformed_masks_before_importing_matplotlib(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    real_import = __import__
+
+    def fail_matplotlib(name, *args, **kwargs):
+        if name == "matplotlib" or name.startswith("matplotlib."):
+            raise AssertionError("malformed input imported matplotlib")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fail_matplotlib)
+    image = np.zeros((4, 2, 2, 2), dtype=np.float32)
+    malformed_target = np.zeros((2, 2, 2, 2), dtype=np.float32)
+    prediction = np.zeros((3, 2, 2, 2), dtype=np.float32)
+
+    with pytest.raises(ValueError, match="three channels"):
+        save_slice_visualization(
+            image,
+            malformed_target,
+            prediction,
+            tmp_path / "malformed.png",
+            slice_index=0,
+            image_channel=3,
+        )

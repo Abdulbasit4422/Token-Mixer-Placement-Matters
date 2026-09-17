@@ -3,24 +3,27 @@
 This guide owns prediction conversion, segmentation metrics, full-volume and
 slice evaluation, and visualization outputs. Dataset preparation and canonical
 labels are owned by [DATA.md](DATA.md). Training controls and best-checkpoint
-selection are owned by [TRAINING.md](TRAINING.md).
+selection are owned by [TRAINING.md](TRAINING.md). Measurement protocols,
+timing boundaries, and benchmark serialization are owned by
+[BENCHMARKING.md](BENCHMARKING.md).
 
 ## Source Map
 
 The evaluation contract is grounded in these active symbols:
 
-- [`src/token_mixer/evaluation/metrics.py::{logits_to_regions,dice_by_region,hd95_by_region,hd95_excluded_by_region}`](../src/token_mixer/evaluation/metrics.py#L21-L197)
-- [`src/token_mixer/evaluation/inference.py::{evaluate_full_volumes,_case_spacings}`](../src/token_mixer/evaluation/inference.py#L100-L288)
-- [`src/token_mixer/evaluation/visualization.py::{blend_overlay,save_slice_visualization,plot_metric_history}`](../src/token_mixer/evaluation/visualization.py#L34-L231)
-- [`src/token_mixer/pipelines/_baseline_common.py::{build_volume_evaluator,evaluate_slices,build_slice_evaluator}`](../src/token_mixer/pipelines/_baseline_common.py#L657-L796)
-- [`src/token_mixer/pipelines/_baseline_common.py::{build_volume_loaders,build_slice_loaders}`](../src/token_mixer/pipelines/_baseline_common.py#L410-L575)
-- [`src/token_mixer/data/datasets.py::{BratsVolumeDataset,BratsSliceDataset}`](../src/token_mixer/data/datasets.py#L69-L144)
-- [`src/token_mixer/data/transforms.py::{preprocess_volume,crop_slice}`](../src/token_mixer/data/transforms.py#L227-L292)
-- [`src/token_mixer/models/transunet.py::{adapt_transunet_output,TransUNetSliceAdapter}`](../src/token_mixer/models/transunet.py#L428-L635)
-- [`src/token_mixer/pipelines/pretrain_cnn.py::{_save_reconstruction_grid,_reconstruction_grid_options}`](../src/token_mixer/pipelines/pretrain_cnn.py#L646-L752)
-- [`src/token_mixer/models/cnn_pretrain.py::{evaluate_denoising,compute_psnr}`](../src/token_mixer/models/cnn_pretrain.py#L433-L500)
-- [`configs/data/brats.yaml::{region_names,spacing,roi_size}`](../configs/data/brats.yaml#L1-L22)
-- [`configs/model/transunet.yaml::{image_size,num_classes,canonical_num_classes}`](../configs/model/transunet.yaml#L1-L12)
+- [`src/token_mixer/evaluation/metrics.py::{logits_to_regions,dice_by_region,hd95_by_region,hd95_excluded_by_region}`](../src/token_mixer/evaluation/metrics.py)
+- [`src/token_mixer/evaluation/inference.py::{evaluate_full_volumes,_case_spacings}`](../src/token_mixer/evaluation/inference.py)
+- [`src/token_mixer/evaluation/visualization.py::{blend_overlay,save_slice_visualization,plot_metric_history}`](../src/token_mixer/evaluation/visualization.py)
+- [`src/token_mixer/pipelines/_baseline_common.py::{build_volume_evaluator,evaluate_slices,build_slice_evaluator}`](../src/token_mixer/pipelines/_baseline_common.py)
+- [`src/token_mixer/pipelines/_baseline_common.py::{build_volume_loaders,build_slice_loaders}`](../src/token_mixer/pipelines/_baseline_common.py)
+- [`src/token_mixer/data/datasets.py::{BratsVolumeDataset,BratsSliceDataset}`](../src/token_mixer/data/datasets.py)
+- [`src/token_mixer/data/transforms.py::{preprocess_volume,crop_slice}`](../src/token_mixer/data/transforms.py)
+- [`src/token_mixer/models/transunet.py::{adapt_transunet_output,TransUNetSliceAdapter}`](../src/token_mixer/models/transunet.py)
+- [`src/token_mixer/pipelines/pretrain_cnn.py::{_save_reconstruction_grid,_reconstruction_grid_options}`](../src/token_mixer/pipelines/pretrain_cnn.py)
+- [`src/token_mixer/models/cnn_pretrain.py::{evaluate_denoising,compute_psnr}`](../src/token_mixer/models/cnn_pretrain.py)
+- [`src/token_mixer/evaluation/benchmark.py::{BenchmarkResult,run_model_protocol,serialize_benchmark}`](../src/token_mixer/evaluation/benchmark.py)
+- [`configs/data/brats.yaml::{region_names,spacing,roi_size}`](../configs/data/brats.yaml)
+- [`configs/model/transunet.yaml::{image_size,num_classes,canonical_num_classes}`](../configs/model/transunet.yaml)
 
 The links use `path::symbol` citations. Runtime outputs and generated images
 are evidence produced by these functions, not implementation sources.
@@ -83,7 +86,7 @@ report the number of unique cases with at least one excluded region as
 `hd95_excluded_cases`. `mean_hd95` ignores non-finite region values; an
 all-excluded region produces `NaN`.
 
-## 3-D Full-Volume Protocol
+## `native_3d_full_volume` Protocol
 
 The native 3-D segmentation path is:
 
@@ -135,12 +138,17 @@ This is configured spacing, not automatic extraction of each NIfTI affine by
 the evaluator. A custom loader can provide per-case spacing in the batch when
 physical spacing differs by case.
 
-The returned mapping contains case IDs, both naming forms for each region's
-Dice and HD95, `mean_dice`, `mean_hd95`, and exclusion counters. A supplied
-case ID is retained; otherwise a deterministic numeric fallback is generated
-from the batch offset.
+The returned in-memory mapping contains case IDs, both naming forms for each
+region's Dice and HD95, `mean_dice`, `mean_hd95`, and exclusion counters. A
+supplied case ID is retained; otherwise a deterministic numeric fallback is
+generated from the batch offset. `collect_case_records=True` additionally
+returns one raw-ID record per case for the benchmark pipeline, and
+`measure_latency=True` (with batch size one) adds the named load, preprocess,
+model-compute, postprocess, metric, and end-to-end timings. These raw IDs never
+belong in persisted benchmark rows: the benchmark serializer replaces them
+with the first 16 hexadecimal characters of their UTF-8 SHA-256 digest.
 
-## TransUNet Slice Protocol
+## `transunet_2d_slice` Protocol
 
 TransUNet is an explicit 2-D adapter, not a native 3-D evaluator. The active
 path uses `train_transunet.py::run_transunet`,
@@ -216,9 +224,10 @@ It does not choose a checkpoint, run evaluation, or load data.
 against epoch, and writes the requested history image. It is an explicit
 utility; the shared training pipelines do not automatically call it.
 
-## CNN Reconstruction Grid
+## CNN Denoising Validation And Reconstruction Grid
 
-CNN pretraining has a separate opt-in visualization. The
+CNN pretraining uses the separate `cnn_denoising_validation` benchmark
+protocol and has a separate opt-in visualization. The
 `pretrain_cnn.py::_reconstruction_grid_options` and
 `::_save_reconstruction_grid` helpers read `visualization.reconstruction_grid`
 or the top-level equivalent. When enabled, the helper takes the first
@@ -239,4 +248,7 @@ Metric and visualization tests can use arrays, fixtures, or synthetic models.
 They prove shape, threshold, spacing, aggregation, and output contracts only.
 They do not establish real BraTS quality, convergence, or model ranking. No
 full, cloud, GPU, external-checkout, or real-data evaluation claim belongs in
-this guide without a separately recorded run identity.
+this guide without a separately recorded run identity. Benchmark rows use
+hashed case identifiers and retain protocol identity; see
+[BENCHMARKING.md](BENCHMARKING.md) for local evidence and unavailable-status
+semantics.

@@ -3,42 +3,52 @@ defaults:
   - run: full
   - _self_
 
-runtime: cloud
+command: benchmark
+runtime: benchmark
 device: cuda
+
 paths:
   data_root: ${hydra:runtime.cwd}/data/cloud/brats
-  image_root: ${data.image_root}
+  image_root: ${hydra:runtime.cwd}/data/cloud/imagenet
   output_root: ${hydra:runtime.cwd}/outputs
   experiment_output: ${paths.output_root}/${runtime}/${experiment.name}/${run.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
   checkpoint_dir: ${paths.experiment_output}/checkpoints
   manifest: ${hydra:runtime.cwd}/data/manifests/brats_seed42.json
-third_party:
-  transunet_root: null
-  pretrained_path: null
+
 tracking:
   enabled: true
   mode: online
   project: token-mixer-placement-matters
   entity: aniekanetimudo
   group: token-mixer-brats-seed42
-  job_type: train
+  job_type: benchmark
   run_name: null
-  log_every_steps: 20
-  log_images: true
-  log_checkpoints: true
+  log_images: false
   directory: ${paths.output_root}/wandb
-visualization:
-  segmentation_snapshots:
+
+efficiency:
+  enabled: true
+  nvml:
     enabled: true
-    snapshot_interval_epochs: 10
-    include_best: true
-    include_final: true
-    splits: [train, val]
-    sample_count: 1
-    axis: 0
-    image_channel: 3
-    local_enabled: false
-    output_dir: ${paths.experiment_output}/segmentation_snapshots
+    device_index: 0
+    sample_interval_seconds: 0.25
+  profiler:
+    enabled: true
+    mac_tool: thop
+    flop_tool: fvcore
+
+benchmark:
+  source_checkpoint: null
+  source_artifact: null
+  source_train_run_id: null
+  protocol: auto
+  input_shape: null
+  warmup_iterations: 20
+  repetitions: 100
+  batch_sizes: [1, 2, 4, 8]
+  case_limit: null
+  output_name: benchmark.json
+
 hydra:
   run:
     dir: ${paths.experiment_output}

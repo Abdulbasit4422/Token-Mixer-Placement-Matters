@@ -23,9 +23,14 @@ from token_mixer.models.cnn_pretrain import (
 )
 from token_mixer.pipelines._baseline_common import (
     _copy_resume_best,
+    _finalize_training_run,
     _flatten_training_config,
+    _finish_tracker,
     _invoke_fit,
     _max_cases,
+    _output_dir,
+    _result_with_test_metrics,
+    _write_pipeline_failure,
     resume_path,
     warm_start_path,
 )
@@ -66,6 +71,26 @@ _ROOT_SUPPORTED_DEFAULTS: dict[str, Any] = {
 _UNSUPPORTED_ENGINE_CONTROLS = frozenset(
     {"warmup_epochs", "warmup_lr", "save_every", "early_stop", "log_every"}
 )
+_DEFAULT_EVALUATE_DENOISING = evaluate_denoising
+
+
+class _DeterministicValidationDenoisingDataset(DenoisingDataset):
+    """Keep validation corruption stable across repeated loader passes."""
+
+    def __init__(
+        self,
+        dataset: Any,
+        noise_std: float,
+        channels: int,
+        seed: int,
+    ) -> None:
+        super().__init__(dataset, noise_std=noise_std, channels=channels)
+        self._seed = int(seed)
+
+    def __getitem__(self, index: int):
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(self._seed + int(index))
+            return super().__getitem__(index)
 
 
 def _path_value(config: Any, path: Sequence[str], default: Any = _MISSING) -> Any:
@@ -275,10 +300,18 @@ def build_dataloaders(
     train_dataset = DenoisingDataset(
         Subset(full_dataset, train_indices), noise_std=noise_std, channels=channels
     )
-    val_dataset = DenoisingDataset(
+    validation_seed = int(
+        _first_value(
+            cfg,
+            (("seed",), ("reproducibility", "seed"), ("run", "seed")),
+            default=0,
+        )
+    )
+    val_dataset = _DeterministicValidationDenoisingDataset(
         Subset(ImageFolder(root, transform=val_transform), val_indices),
         noise_std=noise_std,
         channels=channels,
+        seed=validation_seed,
     )
 
     batch_size = int(
@@ -439,25 +472,6 @@ def _build_checkpoints(
     if root is None and output_dir is not None:
         root = output_dir / "checkpoints"
     return None if root is None else CheckpointManager(Path(root))
-
-
-def _output_dir(cfg: DictConfig | Mapping[str, Any]) -> Path:
-    value = _first_value(
-        cfg,
-        (
-            ("paths", "experiment_output"),
-            ("paths", "output_dir"),
-            ("experiment", "output_dir"),
-            ("experiment", "output_root"),
-            ("experiment_output",),
-            ("output_dir",),
-            ("paths", "output_root"),
-            ("output_root",),
-        ),
-    )
-    if value is None:
-        raise ValueError("CNN denoising pretraining requires a configured experiment output path")
-    return Path(value)
 
 
 def _engine_config(
@@ -798,65 +812,103 @@ def run_cnn_denoising_pretrain(cfg: DictConfig) -> FitResult:
         _copy_resume_best(checkpoints, resume)
     tracking_config = _plain(_first_value(cfg, (("tracking",),), default={}))
     tracker = create_tracker(_mapping(tracking_config, "tracking"), run_config)
-    result = _invoke_fit(
-        fit,
-        (
-            model,
-            train_loader,
-            val_loader,
-            loss_fn,
-            evaluate_denoising,
-            phases,
-            run_config,
-            tracker,
-            checkpoints,
-        ),
-        resume=resume,
-        warm_start=warm_start,
-        loader_generator=generator,
-    )
-    if not isinstance(result, FitResult):
-        raise TypeError("shared training engine must return FitResult")
-    best_payload = _restore_best_checkpoint(
-        model,
-        checkpoints,
-        expected_metadata=_engine_checkpoint_metadata(run_config, phases),
-    )
-    if best_payload is None:
-        best_path = checkpoints.root / "best.pt"
-        raise FileNotFoundError(
-            f"best checkpoint '{best_path}' is absent; cannot export encoder_best.pth"
+    try:
+        result = _invoke_fit(
+            fit,
+            (
+                model,
+                train_loader,
+                val_loader,
+                loss_fn,
+                evaluate_denoising,
+                phases,
+                run_config,
+                tracker,
+                checkpoints,
+            ),
+            resume=resume,
+            warm_start=warm_start,
+            loader_generator=generator,
         )
-    if resume is not None or warm_start is not None:
+        if not isinstance(result, FitResult):
+            raise TypeError("shared training engine must return FitResult")
+        best_payload = _restore_best_checkpoint(
+            model,
+            checkpoints,
+            expected_metadata=_engine_checkpoint_metadata(run_config, phases),
+        )
+        if best_payload is None:
+            best_path = checkpoints.root / "best.pt"
+            raise FileNotFoundError(
+                f"best checkpoint '{best_path}' is absent; cannot export encoder_best.pth"
+            )
         result_metadata = dict(result.metadata or {})
+        if resume is not None or warm_start is not None:
+            result_metadata.update(
+                {
+                    "source_checkpoint": str(resume or warm_start),
+                    "resume_mode": "exact" if resume is not None else "warm_start",
+                }
+            )
         result_metadata.update(
             {
-                "source_checkpoint": str(resume or warm_start),
-                "resume_mode": "exact" if resume is not None else "warm_start",
                 "architecture": run_config.get("architecture"),
                 "model_config": run_config.get("model_config"),
                 "execution_device": run_config.get("device"),
+                "protocol": "cnn_denoising_validation",
+                "evaluation_split": "validation",
             }
         )
-        result = FitResult(
-            result.best_metric,
-            result.best_epoch,
-            result.history,
-            result.test_metrics,
-            result_metadata,
+
+        # String loaders are used by legacy direct-test fixtures.  They do
+        # not represent an executable validation loader; a patched evaluator
+        # remains fully supported for lifecycle tests.
+        final_metrics: Mapping[str, Any] | None = None
+        if not (
+            isinstance(val_loader, (str, bytes, bytearray))
+            and evaluate_denoising is _DEFAULT_EVALUATE_DENOISING
+        ):
+            final_metrics = evaluate_denoising(model, val_loader)
+            if not isinstance(final_metrics, Mapping):
+                raise TypeError("denoising validation evaluator must return a mapping")
+            result = _result_with_test_metrics(result, final_metrics, result_metadata)
+        elif result.metadata is not None or resume is not None or warm_start is not None:
+            result = FitResult(
+                result.best_metric,
+                result.best_epoch,
+                result.history,
+                result.test_metrics,
+                result_metadata,
+            )
+
+        encoder_path = _export_encoder(model, output_dir, model_cfg, result, best_payload)
+        extra_files: list[Path] = [encoder_path]
+        grid_enabled, grid_count = _reconstruction_grid_options(cfg)
+        if grid_enabled:
+            grid_path = _save_reconstruction_grid(
+                model,
+                val_loader,
+                output_dir,
+                device,
+                n=grid_count,
+                use_amp=run_config["use_amp"],
+            )
+            if isinstance(grid_path, Path):
+                extra_files.append(grid_path)
+        _finalize_training_run(
+            cfg,
+            tracker,
+            result,
+            checkpoints,
+            protocol="cnn_denoising_validation",
+            extra_files=extra_files,
         )
-    _export_encoder(model, output_dir, model_cfg, result, best_payload)
-    grid_enabled, grid_count = _reconstruction_grid_options(cfg)
-    if grid_enabled:
-        _save_reconstruction_grid(
-            model,
-            val_loader,
-            output_dir,
-            device,
-            n=grid_count,
-            use_amp=run_config["use_amp"],
-        )
-    return result
+        return result
+    except BaseException as error:
+        _write_pipeline_failure(cfg, error, run_config)
+        raise
+    finally:
+        _finish_tracker(tracker)
 
 
 __all__ = ["build_dataloaders", "run_cnn_denoising_pretrain"]

@@ -4,24 +4,27 @@ This guide owns run identity, random-state handling, profile separation, and
 the limits of what current artifacts prove. Training semantics belong to
 [TRAINING.md](TRAINING.md). Manifest and loader construction belong to
 [DATA.md](DATA.md). Hydra composition belongs to [CONFIG.md](CONFIG.md).
+Efficiency and benchmark lineage belong to [BENCHMARKING.md](BENCHMARKING.md).
 
 ## Source Map
 
 The reproducibility contract is grounded in these active symbols and configs:
 
-- [`src/token_mixer/reproducibility.py::{seed_everything,seed_worker}`](../src/token_mixer/reproducibility.py#L9-L28)
-- [`src/token_mixer/training/checkpoints.py::{CheckpointManager,_capture_rng_state,_restore_rng_state}`](../src/token_mixer/training/checkpoints.py#L21-L470)
-- [`src/token_mixer/training/engine.py::{_checkpoint_metadata,fit}`](../src/token_mixer/training/engine.py#L98-L791)
-- [`src/token_mixer/pipelines/_baseline_common.py::{_manifest_metadata,_loader_kwargs}`](../src/token_mixer/pipelines/_baseline_common.py#L276-L358), [`src/token_mixer/pipelines/_baseline_common.py::{run_3d_baseline,run_2d_baseline}`](../src/token_mixer/pipelines/_baseline_common.py#L1168-L1351)
-- [`src/token_mixer/pipelines/train_metaunetr.py::build_loaders`](../src/token_mixer/pipelines/train_metaunetr.py#L484-L569), [`src/token_mixer/pipelines/train_metaunetr.py::run_metaunetr`](../src/token_mixer/pipelines/train_metaunetr.py#L860-L973)
-- [`src/token_mixer/pipelines/pretrain_cnn.py::build_dataloaders`](../src/token_mixer/pipelines/pretrain_cnn.py#L228-L324), [`src/token_mixer/pipelines/pretrain_cnn.py::run_cnn_denoising_pretrain`](../src/token_mixer/pipelines/pretrain_cnn.py#L755-L859)
-- [`src/token_mixer/cli.py::{_save_composed_config,_run}`](../src/token_mixer/cli.py#L27-L100)
-- [`src/token_mixer/training/artifacts.py::{write_run_artifacts,write_failed_run_artifact}`](../src/token_mixer/training/artifacts.py#L101-L284)
-- [`src/token_mixer/__init__.py::__version__`](../src/token_mixer/__init__.py#L1)
-- [`src/token_mixer/training/tracking.py::create_tracker`](../src/token_mixer/training/tracking.py#L49-L81)
-- [`configs/local.yaml::{runtime,paths,tracking}`](../configs/local.yaml#L6-L32), [`configs/cloud.yaml::{runtime,paths,tracking}`](../configs/cloud.yaml#L6-L32)
-- [`configs/run/debug.yaml::{num_workers,seed,deterministic}`](../configs/run/debug.yaml#L1-L17), [`configs/run/full.yaml::{num_workers,seed,deterministic}`](../configs/run/full.yaml#L1-L17)
-- [`configs/data/brats.yaml::{dataset_id,split_seed,val_fraction,test_fraction}`](../configs/data/brats.yaml#L1-L22)
+- [`src/token_mixer/reproducibility.py::{seed_everything,seed_worker}`](../src/token_mixer/reproducibility.py)
+- [`src/token_mixer/training/checkpoints.py::{CheckpointManager,_capture_rng_state,_restore_rng_state}`](../src/token_mixer/training/checkpoints.py)
+- [`src/token_mixer/training/engine.py::{_checkpoint_metadata,fit}`](../src/token_mixer/training/engine.py)
+- [`src/token_mixer/pipelines/_baseline_common.py::{_manifest_metadata,_loader_kwargs}`](../src/token_mixer/pipelines/_baseline_common.py), [`src/token_mixer/pipelines/_baseline_common.py::{run_3d_baseline,run_2d_baseline}`](../src/token_mixer/pipelines/_baseline_common.py)
+- [`src/token_mixer/pipelines/train_metaunetr.py::build_loaders`](../src/token_mixer/pipelines/train_metaunetr.py), [`src/token_mixer/pipelines/train_metaunetr.py::run_metaunetr`](../src/token_mixer/pipelines/train_metaunetr.py)
+- [`src/token_mixer/pipelines/pretrain_cnn.py::build_dataloaders`](../src/token_mixer/pipelines/pretrain_cnn.py), [`src/token_mixer/pipelines/pretrain_cnn.py::run_cnn_denoising_pretrain`](../src/token_mixer/pipelines/pretrain_cnn.py)
+- [`src/token_mixer/cli.py::{_save_composed_config,_run}`](../src/token_mixer/cli.py)
+- [`src/token_mixer/training/artifacts.py::{write_run_artifacts,write_failed_run_artifact}`](../src/token_mixer/training/artifacts.py)
+- [`src/token_mixer/privacy.py::{hash_case_id,redact_case_identifiers,safe_error_message}`](../src/token_mixer/privacy.py)
+- [`src/token_mixer/__init__.py::__version__`](../src/token_mixer/__init__.py)
+- [`src/token_mixer/training/tracking.py::create_tracker`](../src/token_mixer/training/tracking.py)
+- [`src/token_mixer/evaluation/benchmark.py::run_model_protocol`](../src/token_mixer/evaluation/benchmark.py), [`src/token_mixer/evaluation/benchmark.py::serialize_benchmark`](../src/token_mixer/evaluation/benchmark.py)
+- [`configs/local.yaml::{runtime,paths,tracking}`](../configs/local.yaml), [`configs/cloud.yaml::{runtime,paths,tracking}`](../configs/cloud.yaml)
+- [`configs/run/debug.yaml::{num_workers,seed,deterministic}`](../configs/run/debug.yaml), [`configs/run/full.yaml::{num_workers,seed,deterministic}`](../configs/run/full.yaml)
+- [`configs/data/brats.yaml::{dataset_id,split_seed,val_fraction,test_fraction}`](../configs/data/brats.yaml)
 
 The links use `path::symbol` citations. Runtime outputs, checkpoints, W&B
 directories, caches, notebook views, archive files, and machine-local paths
@@ -116,6 +119,14 @@ Successful `provenance.json` contains selected identity fields, metadata, and
 tracking configuration. It is complementary to the full composed `config.yaml`;
 it is not a second complete configuration serialization.
 
+Training artifacts use schema version `2`. `metrics.json` retains the legacy
+best/history/test keys and adds timing, efficiency/power, and early-stopping
+sections. `provenance.json` retains model/data/run identity plus nested timing,
+efficiency, tracking, and metadata sections. Benchmark artifacts use a separate
+schema version and source identity; see [BENCHMARKING.md](BENCHMARKING.md).
+Persisted case fields are redacted to short SHA-256 hashes, while raw case IDs
+remain available only to in-memory evaluators that need to aggregate cases.
+
 ## Profile Separation
 
 The active profiles intentionally separate runtime, data root, device, run
@@ -126,10 +137,11 @@ scale, and output namespace:
 | `local` | `local` | `data/local/brats` | `data/local/imagenet` | `auto` | `debug` |
 | `cloud` | `cloud` | `data/cloud/brats` | `data/cloud/imagenet` | `cuda` | `full` |
 
-Both profiles currently point at the same configured manifest name and set
-tracking disabled. The manifest's case IDs must exist under whichever selected
-root is used. A debug case limiter does not make a small data root equivalent
-to a full root.
+Both profiles currently point at the same configured manifest name. Local
+tracking is disabled; cloud training defaults to online W&B in the approved
+project/group. The manifest's case IDs must exist under whichever selected root
+is used. A debug case limiter does not make a small data root equivalent to a
+full root.
 
 Run outputs use the repository-relative pattern:
 
@@ -151,10 +163,11 @@ cloud or GPU execution occurred.
 W&B mode is orthogonal to profile identity. `tracking.py::create_tracker`
 receives the tracking mapping plus the flattened run config. Disabled tracking
 returns a no-op tracker without importing W&B. Offline and online modes
-initialize W&B with the project, optional entity/name, directory, mode, and run
-config; online mode requires `WANDB_API_KEY` to be present before initialization.
+initialize W&B with the project, optional entity/name/group/job type, directory,
+mode, and run config; online mode accepts `WANDB_API_KEY` or a matching standard
+`.netrc` entry before initialization.
 
-The shipped `local` and `cloud` profiles both use:
+The shipped `local` profile uses:
 
 ```yaml
 tracking:
@@ -162,7 +175,10 @@ tracking:
   mode: disabled
 ```
 
-Enabling W&B does not itself create a data split or checkpoint identity. Keep
+The shipped cloud profile uses online mode with project
+`token-mixer-placement-matters`, entity `aniekanetimudo`, group
+`token-mixer-brats-seed42`, and `job_type: train`. Enabling W&B does not itself
+create a data split or checkpoint identity. Keep
 the selected profile, experiment selector, run name, manifest hash, code
 version, and checkpoint metadata in the run record. Never commit the API key or
 any other secret.
@@ -181,7 +197,12 @@ For an interpretable experiment record, retain the following together:
    exact resume or warm start was used.
 7. W&B mode and run identity when tracking is enabled, or explicit disabled
    mode when it is not.
-8. Data status: real dataset, synthetic fixture, or configuration-only
+8. Benchmark protocol, source checkpoint/artifact, and separate benchmark run
+   identity when efficiency evidence is collected.
+9. Hardware/software identity and measurement settings when efficiency evidence
+   is collected: input shape, precision, warmups, repetitions, batch sizes,
+   timing boundary, counter status, and NVML status.
+10. Data status: real dataset, synthetic fixture, or configuration-only
    preflight.
 
 The last item prevents a successful config print or synthetic contract test

@@ -15,3 +15,10 @@ seed: 42
 deterministic: true
 resume: null
 warm_start: null
+early_stopping:
+  enabled: false
+  monitor: mean_dice
+  mode: max
+  patience: 10
+  min_delta: 0.0
+  min_epochs: 0

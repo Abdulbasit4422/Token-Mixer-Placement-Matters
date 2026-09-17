@@ -5,26 +5,28 @@
 This guide documents active Hydra composition and the configuration boundary
 used by the Token Mixer package. The YAML files under `configs/` define defaults;
 the CLI composes them and dispatches a selected experiment. Source code and
-tests remain the authority when this prose disagrees with behavior.
+tests remain the authority when this prose disagrees with behavior. Efficiency
+and benchmark settings are owned by [BENCHMARKING.md](BENCHMARKING.md).
 
 ## Source Map
 
-- [`src/token_mixer/cli.py::main`](../src/token_mixer/cli.py#L103-L105)
-- [`src/token_mixer/cli.py::_dispatch`](../src/token_mixer/cli.py#L39-L65)
-- [`src/token_mixer/cli.py::_run`](../src/token_mixer/cli.py#L68-L101)
-- [`src/token_mixer/cli.py::_save_composed_config`](../src/token_mixer/cli.py#L27-L30)
-- [`src/token_mixer/reproducibility.py::seed_everything`](../src/token_mixer/reproducibility.py#L9-L20)
-- [`src/token_mixer/pipelines/prepare_data.py::run_prepare`](../src/token_mixer/pipelines/prepare_data.py#L13-L50)
-- [`src/token_mixer/pipelines/_baseline_common.py::_manifest_path`](../src/token_mixer/pipelines/_baseline_common.py#L145-L158)
-- [`src/token_mixer/pipelines/_baseline_common.py::_validate_manifest_configuration`](../src/token_mixer/pipelines/_baseline_common.py#L238-L263)
-- [`src/token_mixer/pipelines/_baseline_common.py::_limit_cases`](../src/token_mixer/pipelines/_baseline_common.py#L111-L135)
-- [`src/token_mixer/pipelines/_baseline_common.py::_tracking_config`](../src/token_mixer/pipelines/_baseline_common.py#L1027-L1029)
-- [`configs/local.yaml::defaults`](../configs/local.yaml#L1-L4)
-- [`configs/cloud.yaml::defaults`](../configs/cloud.yaml#L1-L4)
-- [`configs/data/brats.yaml::modalities`](../configs/data/brats.yaml#L1-L22)
-- [`configs/data/imagenet.yaml::image_root`](../configs/data/imagenet.yaml#L1-L8)
-- [`configs/run/debug.yaml::name`](../configs/run/debug.yaml#L1-L17)
-- [`configs/run/full.yaml::name`](../configs/run/full.yaml#L1-L17)
+- [`src/token_mixer/cli.py::main`](../src/token_mixer/cli.py)
+- [`src/token_mixer/cli.py::_dispatch`](../src/token_mixer/cli.py)
+- [`src/token_mixer/cli.py::_run`](../src/token_mixer/cli.py)
+- [`src/token_mixer/cli.py::_save_composed_config`](../src/token_mixer/cli.py)
+- [`src/token_mixer/reproducibility.py::seed_everything`](../src/token_mixer/reproducibility.py)
+- [`src/token_mixer/pipelines/prepare_data.py::run_prepare`](../src/token_mixer/pipelines/prepare_data.py)
+- [`src/token_mixer/pipelines/_baseline_common.py::_manifest_path`](../src/token_mixer/pipelines/_baseline_common.py)
+- [`src/token_mixer/pipelines/_baseline_common.py::_validate_manifest_configuration`](../src/token_mixer/pipelines/_baseline_common.py)
+- [`src/token_mixer/pipelines/_baseline_common.py::_limit_cases`](../src/token_mixer/pipelines/_baseline_common.py)
+- [`src/token_mixer/pipelines/_baseline_common.py::_tracking_config`](../src/token_mixer/pipelines/_baseline_common.py)
+- [`configs/local.yaml::defaults`](../configs/local.yaml)
+- [`configs/cloud.yaml::defaults`](../configs/cloud.yaml)
+- [`configs/data/brats.yaml::modalities`](../configs/data/brats.yaml)
+- [`configs/data/imagenet.yaml::image_root`](../configs/data/imagenet.yaml)
+- [`configs/run/debug.yaml::name`](../configs/run/debug.yaml)
+- [`configs/run/full.yaml::name`](../configs/run/full.yaml)
+- [`configs/benchmark.yaml::benchmark`](../configs/benchmark.yaml)
 
 ## Composition
 
@@ -64,6 +66,22 @@ experiment selector. Its callable is
 to provide `paths.source_root` and `paths.data_root`; the shipped local/cloud
 profiles define `paths.data_root` but do not define `paths.source_root`.
 
+`configs/benchmark.yaml` is a separate composition with `command: benchmark`.
+It selects a protocol and restored checkpoint or artifact source; it does not
+dispatch training. See [BENCHMARKING.md](BENCHMARKING.md) for protocol and
+measurement semantics.
+
+Benchmark execution requires exactly one source. Set
+`benchmark.source_checkpoint` to a repository-relative checkpoint file or
+directory; a directory resolves to its `best.pt`, and checkpoint metadata is
+validated before measurement. Alternatively set
+`benchmark.source_artifact` to an immutable W&B reference with a version
+(`entity/project/name:vN`) or supported digest (`entity/project/name@sha256:<64
+hex digits>`). Mutable aliases such as `:latest` and `:production` are rejected.
+`benchmark.source_train_run_id` is optional lineage metadata and does not replace
+the checkpoint/artifact source. The shipped profile leaves both sources `null`
+so `--cfg job` is safe composition inspection but is not a runnable benchmark.
+
 ## Selecting A Run
 
 The package entrypoint is:
@@ -100,11 +118,15 @@ The active top-level profiles are:
 | --- | --- | --- | --- | --- | --- |
 | `local` | `local` | `auto` | `debug` | `data/local/brats` | `data/local/imagenet` |
 | `cloud` | `cloud` | `cuda` | `full` | `data/cloud/brats` | `data/cloud/imagenet` |
+| `benchmark` | `benchmark` | `cuda` | `full` | `data/cloud/brats` | `data/cloud/imagenet` via explicit `paths.image_root` |
 
-The roots are resolved below `${hydra:runtime.cwd}`. `paths.image_root` aliases
-`${data.image_root}`. The BraTS data group leaves `data.image_root: null` because
-segmentation loaders use `paths.data_root`; the ImageNet group supplies an
-ImageFolder root under `data/${runtime}/imagenet`.
+The roots are resolved below `${hydra:runtime.cwd}`. Local/cloud
+`paths.image_root` aliases `${data.image_root}`. The benchmark profile supplies
+an explicit cloud ImageFolder path for its `paths.image_root` override; the
+ImageNet group still composes `data.image_root` under `data/${runtime}/imagenet`,
+but the loader's explicit path override takes precedence. The BraTS data group
+leaves `data.image_root: null` because segmentation loaders use
+`paths.data_root`.
 
 Both profiles currently point `paths.manifest` to the repository-relative
 manifest name `data/manifests/brats_seed42.json`. The manifest is shared only
@@ -127,17 +149,30 @@ directory before dispatching. A successful `FitResult` then receives the normal
 run-artifact writer; a runner exception is re-raised after the optional failed
 transfer-provenance artifact path is attempted.
 
-Tracking is disabled in both shipped profiles:
+Local tracking is disabled; cloud training is explicitly online:
 
 ```yaml
+# local.yaml
 tracking:
   enabled: false
   mode: disabled
 ```
 
-The configured project name, optional entity/run name, logging interval, image
-and checkpoint flags, and `${paths.output_root}/wandb` directory are inert until
-tracking is explicitly enabled. Do not put credentials in YAML.
+`cloud.yaml` instead sets `enabled: true`, `mode: online`, project
+`token-mixer-placement-matters`, entity `aniekanetimudo`, group
+`token-mixer-brats-seed42`, and `job_type: train`. Cloud online authentication
+accepts `WANDB_API_KEY` or a matching standard `.netrc` entry. No credential
+belongs in YAML or composed-config output.
+
+The local profile's configured project, logging interval, image/checkpoint
+flags, and W&B directory remain inert until tracking is explicitly enabled.
+`tracking.log_images` is an independent image gate; completed epoch scalar
+records are not suppressed by `log_every_steps`.
+
+Online credential discovery accepts `WANDB_API_KEY` or a matching standard
+`.netrc` entry for a W&B host. Offline mode needs neither; disabled mode returns
+the no-op tracker without importing W&B. Credential values must not be placed
+in YAML, composed output, local provenance, or W&B artifacts.
 
 ## Data Groups
 
@@ -255,6 +290,7 @@ reproducibility settings:
 | `seed` | `42` | `42` |
 | `deterministic` | `true` | `true` |
 | `resume`, `warm_start` | `null` | `null` |
+| `early_stopping.enabled` | `false` | `false` |
 
 Training experiment files interpolate the run values into their `training`
 sections. Their explicit `training.drop_last` value is consumed before the run
@@ -265,6 +301,31 @@ flag before a runner builds its model and loaders.
 `run.max_cases` is applied after a pipeline loads and validates the manifest,
 checks configured split metadata, maps IDs to discovered cases, and creates
 split-specific case lists. It must not be used to conceal missing case IDs.
+
+When enabled, `early_stopping` monitors configured validation evaluations using
+`monitor`, `mode`, `patience`, `min_delta`, and optional `min_epochs`. Patience
+counts validation checks, not raw epochs. Segmentation snapshot settings are
+under `visualization.segmentation_snapshots`; their absolute interval, best,
+and final gates are documented in [BENCHMARKING.md](BENCHMARKING.md).
+
+## Benchmark Configuration
+
+The benchmark profile uses `command: benchmark`, `runtime: benchmark`, and
+`job_type: benchmark`. It requires exactly one of
+`benchmark.source_checkpoint` or an immutable `benchmark.source_artifact`.
+`benchmark.protocol: auto` selects one of the exact protocol names
+`cnn_denoising_validation`, `transunet_2d_slice`, or
+`native_3d_full_volume` from the experiment family. Warmups, repetitions,
+batch sizes, case limit, and JSON output name are explicit benchmark settings;
+they do not reuse training `global_step`. See [BENCHMARKING.md](BENCHMARKING.md)
+for measurement and failure semantics.
+
+The benchmark profile also enables the measurement boundary and declares NVML
+sampling plus `thop`/`fvcore` counter selections. Counter or hardware failures
+are represented by explicit `ok`, `partial`, or `unavailable` status fields;
+missing MAC/FLOP/power values remain `null`, never zero. These settings permit
+status-aware local validation and do not prove that a GPU or external W&B write
+was available.
 
 ## Training Settings
 
@@ -293,6 +354,8 @@ Start with composition-only inspection:
 ```bash
 uv run python -m token_mixer --config-name local experiment=mod_a run=debug --cfg job
 uv run python -m token_mixer --config-name cloud experiment=cnn_denoising_pretrain run=debug --cfg job
+uv run python -m token_mixer --config-name cloud experiment=mod_a run=debug --cfg job
+uv run python -m token_mixer --config-name benchmark experiment=mod_a run=debug --cfg job
 ```
 
 Then inspect the resolved values that matter for the selected runner:
@@ -301,6 +364,8 @@ Then inspect the resolved values that matter for the selected runner:
 - `paths.data_root`, `paths.manifest`, and `data.dataset_id`.
 - `data.modalities`, `data.region_names`, `data.et_label`, and spatial sizes.
 - `run.seed`, `run.deterministic`, `run.max_cases`, and loader settings.
+- `run.early_stopping.*` and `visualization.segmentation_snapshots.*` when
+  telemetry/snapshot behavior is under review.
 - `third_party.transunet_root` and pretrained settings when selecting TransUNet
   or explicit ImageNet transfer.
 
@@ -317,6 +382,7 @@ Common configuration-boundary failures:
 | TransUNet root absent when external model is needed | External model validation raises before build |
 | ResUNet3D ImageNet transfer disabled | No download or transfer occurs unless explicitly enabled |
 | CNN data root missing or too few usable images | ImageFolder loader construction raises |
+| Benchmark source missing, duplicated, or mutable | Benchmark validation raises before measurement |
 | `--cfg job` | Prints composed config and does not dispatch training |
 
 Configuration inspection does not prove data integrity. Use the [DATA.md](DATA.md)

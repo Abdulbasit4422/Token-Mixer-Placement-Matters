@@ -92,7 +92,7 @@ class BratsVolumeDataset:
 
 
 class BratsSliceDataset:
-    """2-D slices with canonical four-class TransUNet targets."""
+    """2-D slices with canonical targets and in-memory case identity."""
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class BratsSliceDataset:
         offsets = self._ensure_offsets()
         return offsets[-1]
 
-    def __getitem__(self, index: int) -> tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, index: int) -> tuple[np.ndarray, np.ndarray, str]:
         index = _normalize_index(index, len(self))
         offsets = self._ensure_offsets()
         case_index = bisect_right(offsets, index) - 1
@@ -135,13 +135,14 @@ class BratsSliceDataset:
         image_slice = np.take(processed_image, slice_index, axis=self.slice_axis + 1)
         multiclass = regions_to_multiclass(masks)
         label_slice = np.take(multiclass, slice_index, axis=self.slice_axis)
-        return crop_slice(
+        cropped_image, cropped_label = crop_slice(
             image_slice,
             label_slice,
             _config_value(self.config, "slice_size", default=None),
             self.training,
             _rng(config),
         )
+        return cropped_image, cropped_label, self.cases[case_index].case_id
 
 
 def _slice_axis(value: Any) -> int:

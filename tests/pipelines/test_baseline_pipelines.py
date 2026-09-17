@@ -250,6 +250,243 @@ def test_fit_result_keeps_old_positional_constructor_and_exposes_pipeline_fields
     assert enriched.metadata == {"architecture": "fixture"}
 
 
+def test_baseline_finalization_keeps_tracker_open_until_quality_and_artifacts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    events: list[str] = []
+    cfg = _volume_config(tmp_path, tmp_path / "unused-manifest.json")
+    cfg["paths"]["experiment_output"] = str(tmp_path / "run")
+    model = _Tiny3D()
+    expected_metrics = {
+        "ET_dice": 0.1,
+        "TC_dice": 0.2,
+        "WT_dice": 0.3,
+        "mean_dice": 0.2,
+        "ET_hd95": 1.0,
+        "TC_hd95": 2.0,
+        "WT_hd95": 3.0,
+        "hd95_excluded_cases": 4,
+    }
+
+    class Tracker:
+        def log_summary(self, metrics):
+            assert (tmp_path / "run" / "metrics.json").is_file()
+            assert (tmp_path / "run" / "provenance.json").is_file()
+            assert metrics["test/dice_ET"] == pytest.approx(0.1)
+            assert metrics["test/dice_TC"] == pytest.approx(0.2)
+            assert metrics["test/dice_WT"] == pytest.approx(0.3)
+            assert metrics["test/avg_dice"] == pytest.approx(0.2)
+            assert metrics["test/hd95_ET"] == pytest.approx(1.0)
+            assert metrics["test/hd95_TC"] == pytest.approx(2.0)
+            assert metrics["test/hd95_WT"] == pytest.approx(3.0)
+            assert metrics["test/hd95_excluded_cases"] == 4
+            events.append("summary")
+
+        def log_table(self, *_args, **_kwargs):
+            events.append("table")
+
+        def log_artifact(self, name, files, **kwargs):
+            assert name == "model"
+            assert kwargs["aliases"] == ("best", "latest")
+            assert {"config.yaml", "metrics.json", "provenance.json", "best.pt"} <= set(
+                files
+            )
+            assert all(Path(path).is_file() for path in files.values())
+            events.append("artifact")
+            return "entity/project/model:v0"
+
+        def finish(self):
+            events.append("finish")
+
+    tracker = Tracker()
+
+    def fake_fit(*args, **kwargs):
+        assert kwargs["finish_tracker"] is False
+        events.append("fit")
+        args[-1].save(
+            "best",
+            args[0],
+            None,
+            None,
+            None,
+            {"epoch": 1, "metric": 0.5, "config": args[6]},
+        )
+        return FitResult(0.5, 1, [{"mean_dice": 0.5}])
+
+    def restore_best(*_args, **_kwargs):
+        events.append("restore_best")
+
+    def evaluate(_model, _loader):
+        events.append("test")
+        return expected_metrics
+
+    monkeypatch.setattr(common, "_restore_best", restore_best)
+
+    result = common.run_3d_baseline(
+        cfg,
+        architecture="Tiny",
+        model_builder=lambda _cfg: model,
+        loader_builder=lambda _cfg, _generator: (
+            "train",
+            "val",
+            "test",
+            {"manifest_hash": "fixture"},
+        ),
+        evaluator_builder=lambda _cfg, _device: evaluate,
+        tracker_builder=lambda *_args: tracker,
+        fit_fn=fake_fit,
+    )
+
+    assert result.test_metrics == expected_metrics
+    assert events == ["fit", "restore_best", "test", "summary", "table", "artifact", "finish"]
+
+
+def test_baseline_failed_fit_writes_failed_provenance_before_tracker_finish(
+    tmp_path: Path,
+):
+    events: list[str] = []
+    cfg = {
+        "paths": {
+            "experiment_output": str(tmp_path / "run"),
+            "checkpoint_dir": str(tmp_path / "checkpoints"),
+        },
+        "spacing": (1.0, 1.0, 1.0),
+        "device": "cpu",
+        "seed": 17,
+        "tracking": {"enabled": False},
+    }
+
+    class Tracker:
+        def finish(self):
+            events.append("finish")
+
+    def fail_fit(*_args, **_kwargs):
+        events.append("fit")
+        raise RuntimeError("fixture fit failure")
+
+    with pytest.raises(RuntimeError, match="fixture fit failure"):
+        common.run_3d_baseline(
+            cfg,
+            architecture="Tiny",
+            model_builder=lambda _cfg: _Tiny3D(),
+            loader_builder=lambda _cfg, _generator: ([], [], []),
+            evaluator_builder=lambda _cfg, _device: lambda _model, _loader: {
+                "mean_dice": 0.5
+            },
+            tracker_builder=lambda *_args: Tracker(),
+            fit_fn=fail_fit,
+        )
+
+    provenance = OmegaConf.load(tmp_path / "run" / "provenance.json")
+    assert provenance.status == "failed"
+    assert provenance.error == "fixture fit failure"
+    assert not (tmp_path / "run" / "metrics.json").exists()
+    assert events == ["fit", "finish"]
+
+
+@pytest.mark.parametrize(
+    ("runner", "model_factory"),
+    [
+        (common.run_3d_baseline, _Tiny3D),
+        (common.run_2d_baseline, _Tiny2D),
+    ],
+)
+@pytest.mark.parametrize("failing_builder", ("evaluator", "loss", "phases"))
+def test_baseline_dependency_failures_finish_tracker(
+    tmp_path: Path,
+    runner,
+    model_factory,
+    failing_builder: str,
+):
+    events: list[str] = []
+    cfg = _volume_config(tmp_path, tmp_path / "unused-manifest.json")
+    cfg["paths"]["experiment_output"] = str(tmp_path / "run")
+
+    class Tracker:
+        def finish(self):
+            events.append("finish")
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError(f"{failing_builder} builder failure")
+
+    valid_evaluator = lambda *_args: lambda *_evaluation_args: {"mean_dice": 0.5}
+    valid_loss = lambda *_args: lambda *_loss_args: torch.zeros(())
+    valid_phases = lambda *_args: []
+    builders = {
+        "evaluator": (fail, valid_loss, valid_phases),
+        "loss": (valid_evaluator, fail, valid_phases),
+        "phases": (valid_evaluator, valid_loss, fail),
+    }
+    evaluator_builder, loss_builder, phases_builder = builders[failing_builder]
+
+    with pytest.raises(RuntimeError, match=failing_builder):
+        runner(
+            cfg,
+            architecture="Tiny",
+            model_builder=lambda _cfg: model_factory(),
+            loader_builder=lambda _cfg, _generator: (
+                "train",
+                "val",
+                "test",
+                {"manifest_hash": "fixture"},
+            ),
+            evaluator_builder=evaluator_builder,
+            loss_builder=loss_builder,
+            phases_builder=phases_builder,
+            tracker_builder=lambda *_args: Tracker(),
+            fit_fn=lambda *_args, **_kwargs: pytest.fail("fit must not run"),
+        )
+
+    assert events == ["finish"]
+
+
+def test_baseline_tracker_failure_marks_existing_artifacts_failed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    cfg = _volume_config(tmp_path, tmp_path / "unused-manifest.json")
+    cfg["paths"]["experiment_output"] = str(tmp_path / "run")
+    events: list[str] = []
+
+    class Tracker:
+        def log_summary(self, _metrics):
+            pass
+
+        def log_table(self, *_args, **_kwargs):
+            pass
+
+        def log_artifact(self, *_args, **_kwargs):
+            raise RuntimeError("tracker artifact failure")
+
+        def finish(self):
+            events.append("finish")
+
+    monkeypatch.setattr(common, "_restore_best", lambda *_args, **_kwargs: None)
+    with pytest.raises(RuntimeError, match="tracker artifact failure"):
+        common.run_3d_baseline(
+            cfg,
+            architecture="Tiny",
+            model_builder=lambda _cfg: _Tiny3D(),
+            loader_builder=lambda _cfg, _generator: (
+                "train",
+                "val",
+                "test",
+                {"manifest_hash": "fixture"},
+            ),
+            evaluator_builder=lambda *_args: lambda *_evaluation_args: {
+                "mean_dice": 0.5
+            },
+            tracker_builder=lambda *_args: Tracker(),
+            fit_fn=lambda *_args, **_kwargs: FitResult(0.5, 1, []),
+        )
+
+    metrics = OmegaConf.load(tmp_path / "run" / "metrics.json")
+    provenance = OmegaConf.load(tmp_path / "run" / "provenance.json")
+    assert metrics.test_metrics.mean_dice == pytest.approx(0.5)
+    assert provenance.status == "failed"
+    assert provenance.error == "tracker artifact failure"
+    assert events == ["finish"]
+
+
 @pytest.mark.parametrize(
     ("module_name", "run_name", "builder_name", "model"),
     [
@@ -396,3 +633,33 @@ def test_slice_evaluator_averages_metrics_per_slice_across_uneven_batches():
     )
 
     assert metrics["ET_dice"] == pytest.approx(2.0 / 3.0)
+
+
+def test_volume_evaluator_forwards_opt_in_case_record_and_timing_flags(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls: list[dict[str, Any]] = []
+
+    def evaluate(*args, **kwargs):
+        calls.append({"args": args, "kwargs": kwargs})
+        return {}
+
+    monkeypatch.setattr(common, "evaluate_full_volumes", evaluate)
+    evaluator = common.build_volume_evaluator(
+        {
+            "spacing": (1.0, 1.0, 1.0),
+            "roi_size": (4, 4, 4),
+            "overlap": 0.25,
+            "collect_case_records": True,
+            "measure_latency": True,
+        },
+        device="cpu",
+    )
+
+    evaluator("model", "loader")
+
+    assert calls[0]["kwargs"] == {
+        "default_spacing": (1.0, 1.0, 1.0),
+        "collect_case_records": True,
+        "measure_latency": True,
+    }

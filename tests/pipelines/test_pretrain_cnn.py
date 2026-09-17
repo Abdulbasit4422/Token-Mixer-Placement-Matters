@@ -316,6 +316,49 @@ def test_pipeline_dataloaders_apply_run_max_cases_before_train_val_split(
     assert len(val_loader.dataset) == 1
 
 
+def test_validation_noise_is_reused_for_model_and_case_level_access(
+    tmp_path: Path,
+):
+    image_module = pytest.importorskip("PIL.Image")
+    import token_mixer.pipelines.pretrain_cnn as pipeline
+
+    root = tmp_path / "images"
+    for class_name in ("class_a", "class_b"):
+        class_dir = root / class_name
+        class_dir.mkdir(parents=True)
+        image_module.new("RGB", (40, 40), (100, 50, 25)).save(
+            class_dir / "sample.png"
+        )
+
+    cfg = OmegaConf.create(
+        {
+            "model": {"in_channels": 3, "image_size": 32},
+            "data": {
+                "root": str(root),
+                "noise_std": 0.5,
+                "val_fraction": 0.5,
+            },
+            "training": {
+                "batch_size": 1,
+                "num_workers": 0,
+                "pin_memory": False,
+                "persistent_workers": False,
+                "drop_last": False,
+            },
+            "seed": 17,
+        }
+    )
+
+    _train_loader, val_loader = pipeline.build_dataloaders(
+        cfg,
+        torch.Generator().manual_seed(17),
+    )
+    model_level_noisy = next(iter(val_loader))[0]
+    case_level_noisy = next(iter(val_loader))[0]
+
+    torch.testing.assert_close(model_level_noisy, case_level_noisy)
+
+
 def test_run_pipeline_seeds_before_building_model_or_loaders_and_delegates(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
@@ -378,6 +421,87 @@ def test_run_pipeline_seeds_before_building_model_or_loaders_and_delegates(
     assert callable(fit_calls[0][4])
     assert fit_calls[0][6]["monitor"] == "mse"
     assert fit_calls[0][6]["maximize"] is False
+
+
+def test_pipeline_finishes_tracker_after_final_validation_and_artifacts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import token_mixer.pipelines.pretrain_cnn as pipeline
+
+    cfg = _config(tmp_path)
+    model = _TinyModel()
+    expected = FitResult(0.25, 1, [{"mse": 0.25}])
+    events: list[str] = []
+
+    class Tracker:
+        def log_summary(self, metrics):
+            assert (tmp_path / "experiment" / "metrics.json").is_file()
+            assert metrics["val/mse"] == pytest.approx(0.1)
+            events.append("summary")
+
+        def log_table(self, *_args, **_kwargs):
+            events.append("table")
+
+        def log_artifact(self, name, files, **kwargs):
+            assert name == "model"
+            assert kwargs["aliases"] == ("best", "latest")
+            assert {"config.yaml", "metrics.json", "provenance.json", "encoder_best.pth"} <= set(
+                files
+            )
+            assert all(Path(path).is_file() for path in files.values())
+            events.append("artifact")
+            return "entity/project/model:v0"
+
+        def finish(self):
+            events.append("finish")
+
+    monkeypatch.setattr(pipeline, "seed_everything", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(pipeline, "build_denoising_model", lambda _cfg: model)
+    monkeypatch.setattr(
+        pipeline,
+        "build_dataloaders",
+        lambda _cfg, _generator: ("train-loader", "val-loader"),
+    )
+    monkeypatch.setattr(pipeline, "create_tracker", lambda *_args: Tracker())
+
+    def fake_fit(*_args, **kwargs):
+        assert kwargs["finish_tracker"] is False
+        events.append("fit")
+        return expected
+
+    def restore_best(*_args, **_kwargs):
+        events.append("restore_best")
+        return {"epoch": 1, "metric": 0.25}
+
+    def evaluate(_model, _loader):
+        events.append("validation")
+        return {"mse": 0.1}
+
+    def export_encoder(*_args):
+        events.append("export")
+        path = tmp_path / "experiment" / "encoder_best.pth"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"encoder")
+        return path
+
+    monkeypatch.setattr(pipeline, "fit", fake_fit)
+    monkeypatch.setattr(pipeline, "_restore_best_checkpoint", restore_best)
+    monkeypatch.setattr(pipeline, "evaluate_denoising", evaluate)
+    monkeypatch.setattr(pipeline, "_export_encoder", export_encoder)
+
+    result = pipeline.run_cnn_denoising_pretrain(cfg)
+
+    assert result.test_metrics == {"mse": 0.1}
+    assert events == [
+        "fit",
+        "restore_best",
+        "validation",
+        "export",
+        "summary",
+        "table",
+        "artifact",
+        "finish",
+    ]
 
 
 def test_pipeline_requires_checkpointing_before_training(

@@ -230,6 +230,181 @@ def test_run_metaunetr_reloads_best_and_evaluates_held_out_test_loader(
     assert events == [("evaluate", (model, "test-loader", 1.0))]
 
 
+def test_run_metaunetr_finishes_tracker_after_test_artifacts(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import token_mixer.pipelines.train_metaunetr as pipeline
+
+    cfg = _config()
+    cfg["paths"] = {
+        "experiment_output": str(tmp_path / "run"),
+        "checkpoint_dir": str(tmp_path / "checkpoints"),
+    }
+    model = object()
+    events: list[str] = []
+
+    class _Bundle(tuple):
+        metadata = {"manifest_hash": "fixture"}
+        test_loader = "test-loader"
+
+        def __new__(cls):
+            return super().__new__(cls, ("train-loader", "val-loader"))
+
+    class Tracker:
+        def log_summary(self, metrics):
+            assert (tmp_path / "run" / "metrics.json").is_file()
+            assert metrics["test/dice_ET"] == pytest.approx(0.1)
+            assert metrics["test/avg_dice"] == pytest.approx(0.2)
+            assert metrics["test/hd95_ET"] == pytest.approx(1.0)
+            assert metrics["test/hd95_excluded_cases"] == 3
+            events.append("summary")
+
+        def log_table(self, *_args, **_kwargs):
+            events.append("table")
+
+        def log_artifact(self, *_args, **_kwargs):
+            events.append("artifact")
+            return "entity/project/model:v0"
+
+        def finish(self):
+            events.append("finish")
+
+    monkeypatch.setattr(pipeline, "seed_everything", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(pipeline, "build_metaunetr", lambda *_args: model)
+    monkeypatch.setattr(pipeline, "build_loaders", lambda *_args: _Bundle())
+    monkeypatch.setattr(pipeline, "_build_evaluator", lambda *_args: lambda *_: {})
+    monkeypatch.setattr(pipeline, "create_tracker", lambda *_args: Tracker())
+
+    def fake_fit(*_args, **kwargs):
+        assert kwargs["finish_tracker"] is False
+        events.append("fit")
+        return FitResult(0.75, 1, [{"mean_dice": 0.75}])
+
+    def restore_best(*_args, **_kwargs):
+        events.append("restore_best")
+
+    def evaluate(_model, _loader):
+        events.append("test")
+        return {
+            "ET_dice": 0.1,
+            "TC_dice": 0.2,
+            "WT_dice": 0.3,
+            "mean_dice": 0.2,
+            "ET_hd95": 1.0,
+            "hd95_excluded_cases": 3,
+        }
+
+    monkeypatch.setattr(pipeline, "fit", fake_fit)
+    monkeypatch.setattr(pipeline, "_restore_best", restore_best)
+    monkeypatch.setattr(pipeline, "_build_evaluator", lambda *_args: evaluate)
+
+    result = pipeline.run_metaunetr(cfg)
+
+    assert result.test_metrics["mean_dice"] == pytest.approx(0.2)
+    assert events == [
+        "fit",
+        "restore_best",
+        "test",
+        "summary",
+        "table",
+        "artifact",
+        "finish",
+    ]
+
+
+def test_run_metaunetr_finalizes_validation_when_test_loader_is_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    import json
+
+    import token_mixer.pipelines.train_metaunetr as pipeline
+
+    cfg = _config()
+    cfg["paths"] = {
+        "experiment_output": str(tmp_path / "run"),
+        "checkpoint_dir": str(tmp_path / "checkpoints"),
+    }
+    (tmp_path / "checkpoints").mkdir()
+    (tmp_path / "checkpoints" / "best.pt").write_bytes(b"best")
+    model = object()
+    events: list[str] = []
+
+    class _Bundle(tuple):
+        metadata = {"manifest_hash": "fixture"}
+        test_loader = None
+
+        def __new__(cls):
+            return super().__new__(cls, ("train-loader", "validation-loader"))
+
+    class Tracker:
+        def log_summary(self, metrics):
+            assert metrics["val/dice_ET"] == pytest.approx(0.1)
+            assert metrics["val/avg_dice"] == pytest.approx(0.2)
+            assert metrics["evaluation_split"] == "val"
+            events.append("summary")
+
+        def log_table(self, *_args, **_kwargs):
+            events.append("table")
+
+        def log_artifact(self, name, files, **kwargs):
+            assert name == "model"
+            assert kwargs["aliases"] == ("best", "latest")
+            assert {"config.yaml", "metrics.json", "provenance.json", "best.pt"} <= set(
+                files
+            )
+            assert all(Path(path).is_file() for path in files.values())
+            events.append("artifact")
+
+        def finish(self):
+            events.append("finish")
+
+    def evaluate(_model, loader):
+        assert loader == "validation-loader"
+        events.append("validation")
+        return {
+            "ET_dice": 0.1,
+            "TC_dice": 0.2,
+            "WT_dice": 0.3,
+            "mean_dice": 0.2,
+        }
+
+    monkeypatch.setattr(pipeline, "seed_everything", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(pipeline, "build_metaunetr", lambda *_args: model)
+    monkeypatch.setattr(pipeline, "build_loaders", lambda *_args: _Bundle())
+    monkeypatch.setattr(pipeline, "_build_evaluator", lambda *_args: evaluate)
+    monkeypatch.setattr(pipeline, "create_tracker", lambda *_args: Tracker())
+    monkeypatch.setattr(
+        pipeline,
+        "_restore_best",
+        lambda *_args, **_kwargs: events.append("restore_best"),
+    )
+
+    def fake_fit(*_args, **kwargs):
+        assert kwargs["finish_tracker"] is False
+        events.append("fit")
+        return FitResult(0.75, 1, [{"mean_dice": 0.75}])
+
+    monkeypatch.setattr(pipeline, "fit", fake_fit)
+
+    result = pipeline.run_metaunetr(cfg)
+
+    assert result.test_metrics["mean_dice"] == pytest.approx(0.2)
+    assert result.metadata["protocol"] == "native_3d_validation"
+    assert result.metadata["evaluation_split"] == "validation"
+    provenance = json.loads((tmp_path / "run" / "provenance.json").read_text())
+    assert provenance["protocol"] == "native_3d_validation"
+    assert provenance["evaluation_split"] == "validation"
+    assert events == [
+        "fit",
+        "restore_best",
+        "validation",
+        "summary",
+        "table",
+        "artifact",
+        "finish",
+    ]
+
+
 def test_metaunetr_consumes_nested_experiment_training_settings():
     import token_mixer.pipelines.train_metaunetr as pipeline
 

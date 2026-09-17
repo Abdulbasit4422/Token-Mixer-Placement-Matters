@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping, Sequence
 from numbers import Number
 from pathlib import Path
@@ -9,12 +10,14 @@ import numpy as np
 
 
 # Region masks follow the package-wide canonical order: ET, TC, WT.
-_REGION_NAMES = ("ET", "TC", "WT")
+REGION_NAMES = ("ET", "TC", "WT")
+_REGION_NAMES = REGION_NAMES
 _REGION_COLORS = {
     "TC": np.array([1.0, 0.2, 0.2], dtype=np.float32),
     "WT": np.array([1.0, 0.9, 0.1], dtype=np.float32),
     "ET": np.array([0.1, 0.9, 1.0], dtype=np.float32),
 }
+REGION_COLORS = _REGION_COLORS
 
 
 def _array(value: Any, name: str) -> np.ndarray:
@@ -97,6 +100,70 @@ def _validate_slice_axis(slice_axis: int) -> int:
     return slice_axis
 
 
+def _slice_indices(slice_index: int | Sequence[int], size: int) -> tuple[int, ...]:
+    if isinstance(slice_index, Sequence) and not isinstance(
+        slice_index, (str, bytes, bytearray)
+    ):
+        values = tuple(int(index) for index in slice_index)
+    else:
+        values = (int(slice_index),)
+    if not values:
+        raise ValueError("slice_index must contain at least one index")
+    if any(index < 0 or index >= size for index in values):
+        raise IndexError(f"slice_index is outside image axis with size {size}")
+    return values
+
+
+def _region_volume(masks: Any) -> np.ndarray:
+    result = _array(masks, "masks")
+    if result.ndim == 5:
+        if result.shape[0] != 1:
+            raise ValueError(
+                f"masks batched input must have batch size 1, got shape {result.shape}"
+            )
+        result = result[0]
+    if result.ndim == 3 and result.shape[0] == len(_REGION_NAMES):
+        result = result[:, None, ...]
+    if result.ndim != 4 or result.shape[0] != len(_REGION_NAMES):
+        raise ValueError(
+            "masks must have shape (3, D, H, W), or a single 2-D slice with "
+            f"three channels; got {result.shape}"
+        )
+    return result
+
+
+def region_aware_slice_indices(
+    masks: Any, *, slice_axis: int = 0
+) -> tuple[int, ...]:
+    """Choose deterministic slices that expose every available ET/TC/WT region.
+
+    A single slice is preferred when it contains all regions. If no such slice
+    exists, the earliest slice containing each region is returned as a small
+    region-aware montage. Ties are resolved by axis order, so selection does
+    not depend on loader or model state.
+    """
+    slice_axis = _validate_slice_axis(slice_axis)
+    volume = _region_volume(masks)
+    spatial_axis = slice_axis + 1
+    present_axes = tuple(
+        axis for axis in range(1, volume.ndim) if axis != spatial_axis
+    )
+    present = np.any(volume > 0.5, axis=present_axes)
+    coverage = np.sum(present, axis=0)
+    best_coverage = int(np.max(coverage)) if coverage.size else 0
+    if best_coverage == len(_REGION_NAMES):
+        return (int(np.flatnonzero(coverage == best_coverage)[0]),)
+
+    selected: set[int] = set()
+    for region_index in range(len(_REGION_NAMES)):
+        positions = np.flatnonzero(present[region_index])
+        if positions.size:
+            selected.add(int(positions[0]))
+    if not selected and coverage.size:
+        selected.add(int(np.flatnonzero(coverage == best_coverage)[0]))
+    return tuple(sorted(selected))
+
+
 def _image_slice(
     image: Any,
     image_channel: int,
@@ -121,9 +188,7 @@ def _image_slice(
 
 
 def _mask_slice(masks: Any, name: str, slice_index: int, slice_axis: int) -> np.ndarray:
-    volume = _first_volume(masks, name, channels=3)
-    if volume.ndim != 4:
-        raise ValueError(f"{name} must have shape (3, D, H, W), or a batched equivalent")
+    volume = _region_volume(masks)
     spatial_axis = slice_axis + 1
     if not 0 <= slice_index < volume.shape[spatial_axis]:
         raise IndexError(
@@ -133,10 +198,134 @@ def _mask_slice(masks: Any, name: str, slice_index: int, slice_axis: int) -> np.
     return np.take(volume, slice_index, axis=spatial_axis)
 
 
+def _validate_visualization_inputs(
+    image: Any,
+    target: Any,
+    prediction: Any,
+    *,
+    slice_index: int | Sequence[int],
+    image_channel: int,
+    slice_axis: int,
+) -> tuple[int, ...]:
+    slice_axis = _validate_slice_axis(slice_axis)
+    image_volume = _first_volume(image, "image")
+    target_volume = _region_volume(target)
+    prediction_volume = _region_volume(prediction)
+    if target_volume.shape != prediction_volume.shape:
+        raise ValueError(
+            "target and prediction must have matching region-mask shapes, got "
+            f"{target_volume.shape} and {prediction_volume.shape}"
+        )
+    for name, value in (("target", target_volume), ("prediction", prediction_volume)):
+        try:
+            finite = np.isfinite(value).all()
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{name} must contain finite values") from exc
+        if not finite:
+            raise ValueError(f"{name} must contain finite values")
+
+    if image_volume.ndim == 4:
+        if not 0 <= image_channel < image_volume.shape[0]:
+            raise ValueError(
+                f"image_channel {image_channel} is outside image shape {image_volume.shape}"
+            )
+        image_shape = image_volume.shape[1:]
+    elif image_volume.ndim == 3:
+        image_shape = image_volume.shape
+    else:
+        raise ValueError(
+            "image must have shape (D, H, W), (C, D, H, W), or a batched equivalent"
+        )
+    try:
+        image_finite = np.isfinite(image_volume).all()
+    except (TypeError, ValueError) as exc:
+        raise ValueError("image must contain finite values") from exc
+    if not image_finite:
+        raise ValueError("image must contain finite values")
+    if tuple(image_shape) != tuple(target_volume.shape[1:]):
+        raise ValueError(
+            "image, target, and prediction spatial shapes must match, got "
+            f"{image_shape} and {target_volume.shape[1:]}"
+        )
+    return _slice_indices(slice_index, int(image_shape[slice_axis]))
+
+
+def _grayscale_rgb(image_slice: np.ndarray) -> np.ndarray:
+    image_float = np.asarray(image_slice, dtype=np.float32)
+    if image_float.ndim != 2 or image_float.size == 0:
+        raise ValueError("image slice must be a non-empty 2-D array")
+    if not np.isfinite(image_float).all():
+        raise ValueError("image must contain finite values")
+    minimum = float(np.min(image_float))
+    maximum = float(np.max(image_float))
+    if maximum == minimum:
+        image_uint8 = np.zeros(image_float.shape, dtype=np.uint8)
+    else:
+        image_uint8 = np.clip(
+            (image_float - minimum) / (maximum - minimum) * 255.0, 0, 255
+        ).astype(np.uint8)
+    return np.repeat(image_uint8[..., None], 3, axis=-1)
+
+
+def render_slice_visualization(
+    image: Any,
+    target: Any,
+    prediction: Any,
+    *,
+    slice_index: int | Sequence[int],
+    image_channel: int = 0,
+    slice_axis: int = 0,
+    alpha: float = 0.45,
+) -> np.ndarray:
+    """Render one or more canonical input/target/prediction RGB montages.
+
+    This is the in-memory counterpart of :func:`save_slice_visualization`.
+    It deliberately performs no plotting-library import, which lets the W&B
+    adapter forward image arrays without creating local files.
+    """
+    indices = _validate_visualization_inputs(
+        image,
+        target,
+        prediction,
+        slice_index=slice_index,
+        image_channel=image_channel,
+        slice_axis=slice_axis,
+    )
+    rows: list[np.ndarray] = []
+    for index in indices:
+        image_slice = _image_slice(image, image_channel, index, slice_axis)
+        target_slice = _mask_slice(target, "target", index, slice_axis)
+        prediction_slice = _mask_slice(prediction, "prediction", index, slice_axis)
+        rows.append(
+            np.concatenate(
+                (
+                    _grayscale_rgb(image_slice),
+                    blend_overlay(image_slice, target_slice, alpha=alpha),
+                    blend_overlay(image_slice, prediction_slice, alpha=alpha),
+                ),
+                axis=1,
+            )
+        )
+    width = {row.shape[1] for row in rows}
+    if len(width) != 1:
+        raise ValueError("all rendered slices must have the same spatial width")
+    return np.concatenate(rows, axis=0).astype(np.uint8, copy=False)
+
+
 def _output_path(value: str | Path) -> Path:
     path = Path(value)
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _load_pyplot():
+    import matplotlib
+
+    if "MPLBACKEND" not in os.environ:
+        matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    return plt
 
 
 def save_slice_visualization(
@@ -145,7 +334,7 @@ def save_slice_visualization(
     prediction: Any,
     output_path: str | Path,
     *,
-    slice_index: int,
+    slice_index: int | Sequence[int],
     image_channel: int = 0,
     slice_axis: int = 0,
     alpha: float = 0.45,
@@ -155,29 +344,41 @@ def save_slice_visualization(
     Volumes use channel-first ``[C, D, H, W]`` and ``[3, D, H, W]`` layouts.
     ``slice_axis`` selects one of the spatial axes ``D/H/W`` by index ``0/1/2``.
     """
-    slice_axis = _validate_slice_axis(slice_axis)
-    image_slice = _image_slice(image, image_channel, slice_index, slice_axis)
-    target_slice = _mask_slice(target, "target", slice_index, slice_axis)
-    prediction_slice = _mask_slice(prediction, "prediction", slice_index, slice_axis)
+    indices = _validate_visualization_inputs(
+        image,
+        target,
+        prediction,
+        slice_index=slice_index,
+        image_channel=image_channel,
+        slice_axis=slice_axis,
+    )
     path = _output_path(output_path)
 
+    plt = _load_pyplot()
     import matplotlib.patches as patches
-    import matplotlib.pyplot as plt
 
-    figure, axes = plt.subplots(1, 3, figsize=(15, 5))
+    figure, axes = plt.subplots(
+        len(indices), 3, figsize=(15, 5 * len(indices)), squeeze=False
+    )
     try:
-        axes[0].imshow(image_slice, cmap="gray")
-        axes[0].set_title("Input MRI")
-        axes[1].imshow(blend_overlay(image_slice, target_slice, alpha=alpha))
-        axes[1].set_title("Ground Truth")
-        axes[2].imshow(blend_overlay(image_slice, prediction_slice, alpha=alpha))
-        axes[2].set_title("Prediction")
+        for row, index in enumerate(indices):
+            image_slice = _image_slice(image, image_channel, index, slice_axis)
+            target_slice = _mask_slice(target, "target", index, slice_axis)
+            prediction_slice = _mask_slice(prediction, "prediction", index, slice_axis)
+            axes[row, 0].imshow(image_slice, cmap="gray")
+            axes[row, 0].set_title("Input MRI")
+            axes[row, 1].imshow(blend_overlay(image_slice, target_slice, alpha=alpha))
+            axes[row, 1].set_title("Ground Truth")
+            axes[row, 2].imshow(
+                blend_overlay(image_slice, prediction_slice, alpha=alpha)
+            )
+            axes[row, 2].set_title("Prediction")
         legend = [
             patches.Patch(color=_REGION_COLORS[name], label=name) for name in _REGION_NAMES
         ]
-        axes[1].legend(handles=legend, loc="lower right", fontsize=8)
-        axes[2].legend(handles=legend, loc="lower right", fontsize=8)
-        for axis in axes:
+        axes[0, 1].legend(handles=legend, loc="lower right", fontsize=8)
+        axes[0, 2].legend(handles=legend, loc="lower right", fontsize=8)
+        for axis in axes.flat:
             axis.axis("off")
         figure.tight_layout()
         figure.savefig(path, bbox_inches="tight", dpi=150)
@@ -210,7 +411,7 @@ def plot_metric_history(
             if isinstance(value, (Number, np.number)) and not isinstance(value, bool):
                 numeric_keys.append(str(key))
 
-    import matplotlib.pyplot as plt
+    plt = _load_pyplot()
 
     figure, axis = plt.subplots(figsize=(9, 5))
     try:

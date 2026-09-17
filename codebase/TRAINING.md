@@ -5,28 +5,30 @@ selection metrics, checkpoints, resume modes, tracking, and run artifacts.
 Input layouts, manifests, and loader construction belong to [DATA.md](DATA.md).
 Hydra composition and profile values belong to [CONFIG.md](CONFIG.md).
 Reproducibility identity and run-record rules belong to
-[REPRODUCIBILITY.md](REPRODUCIBILITY.md).
+[REPRODUCIBILITY.md](REPRODUCIBILITY.md). Efficiency telemetry, snapshot
+gates, and benchmark separation belong to [BENCHMARKING.md](BENCHMARKING.md).
 
 ## Source Map
 
 The execution claims here are grounded in active source and configuration:
 
-- [`src/token_mixer/training/engine.py::{FitResult,fit}`](../src/token_mixer/training/engine.py#L21-L791)
-- [`src/token_mixer/training/phases.py::{PhaseSpec,apply_phase}`](../src/token_mixer/training/phases.py#L9-L27)
-- [`src/token_mixer/training/checkpoints.py::CheckpointManager`](../src/token_mixer/training/checkpoints.py#L207-L470)
-- [`src/token_mixer/training/tracking.py::{Tracker,create_tracker}`](../src/token_mixer/training/tracking.py#L9-L81)
-- [`src/token_mixer/training/artifacts.py::{write_run_artifacts,write_failed_run_artifact}`](../src/token_mixer/training/artifacts.py#L101-L284)
-- [`src/token_mixer/cli.py::{_run,_dispatch}`](../src/token_mixer/cli.py#L39-L105)
-- [`src/token_mixer/pipelines/_baseline_common.py::{run_3d_baseline,run_2d_baseline}`](../src/token_mixer/pipelines/_baseline_common.py#L1168-L1351)
-- [`src/token_mixer/pipelines/train_metaunetr.py::run_metaunetr`](../src/token_mixer/pipelines/train_metaunetr.py#L860-L973)
-- [`src/token_mixer/pipelines/train_resunet3d.py::run_resunet3d`](../src/token_mixer/pipelines/train_resunet3d.py#L286-L322)
-- [`src/token_mixer/pipelines/train_swinunetr.py::run_swinunetr`](../src/token_mixer/pipelines/train_swinunetr.py#L45-L59)
-- [`src/token_mixer/pipelines/train_transunet.py::run_transunet`](../src/token_mixer/pipelines/train_transunet.py#L71-L88)
-- [`src/token_mixer/pipelines/pretrain_cnn.py::run_cnn_denoising_pretrain`](../src/token_mixer/pipelines/pretrain_cnn.py#L755-L859)
-- [`configs/experiment/metaunetr_mamba.yaml::training.phases`](../configs/experiment/metaunetr_mamba.yaml#L10-L38), [`configs/experiment/mod_a.yaml::training.phases`](../configs/experiment/mod_a.yaml#L10-L38), [`configs/experiment/mod_b.yaml::training.phases`](../configs/experiment/mod_b.yaml#L10-L38)
-- [`configs/experiment/resunet3d.yaml::training.phases`](../configs/experiment/resunet3d.yaml#L9-L37), [`configs/experiment/swinunetr.yaml::training.phases`](../configs/experiment/swinunetr.yaml#L9-L32), [`configs/experiment/transunet.yaml::training.phases`](../configs/experiment/transunet.yaml#L9-L32)
-- [`configs/experiment/cnn_denoising_pretrain.yaml::training.phases`](../configs/experiment/cnn_denoising_pretrain.yaml#L9-L33)
-- [`configs/run/debug.yaml::{max_cases,epochs,phase1_epochs,phase2_epochs}`](../configs/run/debug.yaml#L1-L17), [`configs/run/full.yaml::{max_cases,epochs,phase1_epochs,phase2_epochs}`](../configs/run/full.yaml#L1-L17)
+- [`src/token_mixer/training/engine.py::{FitResult,fit}`](../src/token_mixer/training/engine.py)
+- [`src/token_mixer/training/phases.py::{PhaseSpec,apply_phase}`](../src/token_mixer/training/phases.py)
+- [`src/token_mixer/training/checkpoints.py::CheckpointManager`](../src/token_mixer/training/checkpoints.py)
+- [`src/token_mixer/training/tracking.py::{Tracker,create_tracker}`](../src/token_mixer/training/tracking.py)
+- [`src/token_mixer/training/artifacts.py::{write_run_artifacts,write_failed_run_artifact}`](../src/token_mixer/training/artifacts.py)
+- [`src/token_mixer/evaluation/efficiency.py::{reset_peak_memory,peak_memory_gb,NvmlPowerSampler}`](../src/token_mixer/evaluation/efficiency.py)
+- [`src/token_mixer/cli.py::{_run,_dispatch}`](../src/token_mixer/cli.py)
+- [`src/token_mixer/pipelines/_baseline_common.py::{run_3d_baseline,run_2d_baseline}`](../src/token_mixer/pipelines/_baseline_common.py)
+- [`src/token_mixer/pipelines/train_metaunetr.py::run_metaunetr`](../src/token_mixer/pipelines/train_metaunetr.py)
+- [`src/token_mixer/pipelines/train_resunet3d.py::run_resunet3d`](../src/token_mixer/pipelines/train_resunet3d.py)
+- [`src/token_mixer/pipelines/train_swinunetr.py::run_swinunetr`](../src/token_mixer/pipelines/train_swinunetr.py)
+- [`src/token_mixer/pipelines/train_transunet.py::run_transunet`](../src/token_mixer/pipelines/train_transunet.py)
+- [`src/token_mixer/pipelines/pretrain_cnn.py::run_cnn_denoising_pretrain`](../src/token_mixer/pipelines/pretrain_cnn.py)
+- [`configs/experiment/metaunetr_mamba.yaml::training.phases`](../configs/experiment/metaunetr_mamba.yaml), [`configs/experiment/mod_a.yaml::training.phases`](../configs/experiment/mod_a.yaml), [`configs/experiment/mod_b.yaml::training.phases`](../configs/experiment/mod_b.yaml)
+- [`configs/experiment/resunet3d.yaml::training.phases`](../configs/experiment/resunet3d.yaml), [`configs/experiment/swinunetr.yaml::training.phases`](../configs/experiment/swinunetr.yaml), [`configs/experiment/transunet.yaml::training.phases`](../configs/experiment/transunet.yaml)
+- [`configs/experiment/cnn_denoising_pretrain.yaml::training.phases`](../configs/experiment/cnn_denoising_pretrain.yaml)
+- [`configs/run/debug.yaml::{max_cases,epochs,phase1_epochs,phase2_epochs}`](../configs/run/debug.yaml), [`configs/run/full.yaml::{max_cases,epochs,phase1_epochs,phase2_epochs}`](../configs/run/full.yaml)
 
 The links use `path::symbol` citations rather than generated API pages. Active
 implementation and tests remain authoritative if this prose drifts.
@@ -80,8 +82,11 @@ or protocol equivalence.
 | `test_metrics` | Optional numeric mapping added by a pipeline after best-checkpoint test evaluation. |
 | `metadata` | Optional pipeline provenance, such as architecture, variant, manifest hash, spacing, and source checkpoint. |
 
-`fit` returns the first three fields after it logs the final summary and ends
-the tracker. The baseline helpers use
+`fit` returns the first three fields after it logs the final summary. Direct
+callers retain the default tracker finish behavior; pipeline helpers pass
+`finish_tracker=False` so the tracker remains open through best-checkpoint
+restore, held-out/final validation, local artifact writing, and W&B finalization.
+The baseline helpers use
 `_baseline_common.py::_result_with_test_metrics` to create a new result with
 test metrics and loader/pipeline metadata. The CLI only writes completion
 artifacts when the dispatched value is a `FitResult`.
@@ -138,6 +143,30 @@ metrics are added to the same row. The segmentation experiment files monitor
 `maximize: false`, so lower reconstruction error is better. Do not compare
 these best values as if they were the same metric.
 
+Completed epochs also append one scalar record with an absolute `train/epoch`
+axis. Records retain train duration, optimizer-step delta, observed samples and
+voxels, throughput, allocator peaks, `run/elapsed_seconds`, and `power/*`
+fields. Validation records add `val/epoch` and `val/epoch_seconds` only when
+validation runs; a new best adds `train/time_to_best_seconds` with its timing
+scope. W&B definitions use `train/epoch` and `val/epoch` as axes while
+`global_step` remains monotonic. `log_every_steps` and snapshot cadence do not
+remove epoch records. `train/epoch_seconds` covers loader iteration, forward,
+backward, and optimizer work; validation is timed separately. The process timer
+starts after setup/checkpoint restoration, so `run/elapsed_seconds` is measured
+process-segment elapsed time rather than fabricated wall time. When NVML is
+enabled for CUDA, one sampler runs across the fit and each epoch records its
+current board-power/energy snapshot; those values are cumulative sampler
+snapshots, not allocator memory or a per-epoch reset. CPU allocator fields remain
+`null` rather than implying a CUDA measurement.
+
+When `early_stopping.enabled` is true, `monitor`, `mode`, `patience`,
+`min_delta`, and `min_epochs` govern validation checks. Patience counts
+consecutive non-improving validation evaluations, not raw epochs. Local
+provenance and tracker summary retain stopped, stop-epoch, and best-epoch
+state. Defaults remain disabled in shipped run groups. The last completed epoch
+is logged and checkpointed before an early-stop break; a best checkpoint
+selected on that validation is retained.
+
 ## Checkpoints And Metadata
 
 Pipeline checkpoint roots come from `paths.checkpoint_dir` or the checkpoint
@@ -159,6 +188,13 @@ monitored metric, best metric and epoch, history, manifest hash, configuration,
 checkpoint metadata, package code version, Python/NumPy/PyTorch/CUDA RNG
 states, and the seeded DataLoader generator state when supplied. The active
 pipeline paths always supply that generator.
+
+Telemetry resume state includes measured cumulative train/validation/elapsed
+seconds, `timing_scope`, time-to-best scope, and early-stopping counters. When a
+snapshotter is active, its emitted-key ledger and bounded errors are stored too,
+so resumed runs can deduplicate scheduled, best, and final previews. A resumed
+process starts a new `perf_counter` segment and never treats the old timer as
+continuous wall time.
 
 `engine.py::_checkpoint_metadata` records compatibility information including
 phase plan, monitor, direction, architecture, variant when present, manifest
@@ -214,10 +250,10 @@ not transfer learning.
 
 ## Tracking
 
-`tracking.py::Tracker` is a no-op interface with `log`, `log_summary`, and
-`finish`. `tracking.py::create_tracker` returns that no-op tracker when
-tracking is disabled or `mode: disabled`; it does not import W&B in those
-cases.
+`tracking.py::Tracker` is a no-op interface with scalar, summary, table, image,
+artifact, and lifecycle methods. `tracking.py::create_tracker` returns that
+no-op tracker when tracking is disabled or `mode: disabled`; it does not import
+W&B in those cases.
 
 Supported W&B modes are:
 
@@ -226,23 +262,39 @@ Supported W&B modes are:
 | `enabled: false` | No-op tracker. |
 | `enabled: true`, `mode: disabled` | No-op tracker despite enabled flag. |
 | `enabled: true`, `mode: offline` | Initialize `wandb` in offline mode with the run config. |
-| `enabled: true`, `mode: online` | Require `WANDB_API_KEY`, then initialize an online run. |
+| `enabled: true`, `mode: online` | Require `WANDB_API_KEY` or a matching standard `.netrc` entry, then initialize an online run. |
 
-Initialization forwards project, entity, optional run name, directory, mode,
-and the flattened run configuration. Epoch rows are logged with their
-`global_step`; the final summary is logged through `log_summary`; `finish` is
-called at completion. The active `local` and `cloud` profile files set
-`enabled: false` and `mode: disabled`. No credential value belongs in YAML,
-documentation, or an artifact.
+Initialization forwards project, entity, optional group/job type/tags, run
+name, directory, mode, and the flattened run configuration. Epoch rows are
+logged with their `global_step`; image logging is gated by `log_images`; tables,
+summaries, and artifacts are forwarded through the tracker boundary; `finish`
+is called after pipeline completion. Local defaults are disabled. Cloud
+defaults use online project `token-mixer-placement-matters`, entity
+`aniekanetimudo`, group `token-mixer-brats-seed42`, and `job_type: train`. No
+credential value belongs in YAML, documentation, or an artifact.
 
-The active tracker forwards metrics and lifecycle calls. It does not implement
-explicit W&B artifact uploads. Checkpoints and JSON run artifacts remain local
-outputs unless a separate, user-configured workflow handles them.
+The active W&B tracker forwards metrics, epoch axes, images, tables, summaries,
+and artifact uploads; the disabled tracker remains a local no-op. Training
+finalization uploads `config.yaml`,
+`metrics.json`, `provenance.json`, and `best.pt` when present with `best` and
+`latest` aliases. Benchmark uploads are separate and use `job_type: benchmark`;
+see [BENCHMARKING.md](BENCHMARKING.md) for immutable source lineage and local
+fallback. `artifact.wait()` completes the upload after `log_artifact`; the
+returned immutable artifact reference is the downstream benchmark source.
 
-`fit` finishes the tracker on setup, training, evaluator, and checkpoint errors
-as well as on success. If cleanup itself raises, the original execution error
-is preserved. A tracker-construction error occurs before a tracker exists and
-is reported directly by the pipeline.
+With its default `finish_tracker=True`, `fit` finishes the tracker on setup,
+training, evaluator, and checkpoint errors as well as on success. Pipeline
+helpers pass `finish_tracker=False`, keep the tracker open through best restore,
+held-out/final evaluation, local artifact writing, and tracker finalization, and
+finish it in their outer `finally` block. If cleanup itself raises, the original
+execution error is preserved. A tracker-construction error occurs before a
+tracker exists and is reported directly by the pipeline.
+
+Segmentation snapshots are an independent tracker-gated callback. Absolute
+interval snapshots default to epochs `10`, `20`, `30`, and so on; a newly
+selected best and a final snapshot may be added separately. Fixed train and
+validation examples are used when enabled. See [BENCHMARKING.md](BENCHMARKING.md)
+for image namespaces and disabled/local-only behavior.
 
 ## Run Artifacts And Failure Provenance
 
@@ -252,20 +304,20 @@ interpolations unresolved. After a successful `FitResult`,
 
 | Artifact | Contents |
 | --- | --- |
-| `metrics.json` | `best_epoch`, `best_metric`, complete history, and optional numeric test metrics. |
-| `provenance.json` | Schema version, code version, experiment, architecture, variant, model config, seed, device, manifest hash, monitor, direction, source checkpoint, runtime, metadata, and tracking configuration. |
+| `metrics.json` | `best_epoch`, `best_metric`, complete epoch history, optional numeric test metrics, and timing/efficiency/power/early-stopping sections. |
+| `provenance.json` | Schema version, code version, experiment, architecture, variant, model config, seed, device, manifest hash, monitor, direction, source checkpoint, runtime, protocol, nested timing/efficiency fields, early-stopping metadata, and tracking configuration. |
 
 JSON conversion replaces non-finite floating-point values with `null`; this
 keeps the artifact valid JSON without changing the in-memory metric behavior.
 
 `artifacts.py::write_failed_run_artifact` writes only failure provenance and
-does not fabricate metrics. In the current CLI, it is invoked for a failed
-ResUNet3D ImageNet transfer when the exception carries a requested
-`transfer_report`. That record includes `status: failed`, the error text, and
+does not fabricate metrics. The CLI attempts it for every dispatch exception;
+requested ResUNet3D ImageNet transfer failures additionally carry a
+`transfer_report`. The record includes `status: failed`, bounded error text, and
 available architecture, model, seed, device, manifest, transfer, and tracking
 metadata. Ordinary data, configuration, evaluator, or training exceptions are
-re-raised; the current CLI does not create a generic failed-run JSON for every
-exception.
+still re-raised after the persistence attempt, and a failed provenance file is
+not a completed-run result.
 
 ## Model Exceptions
 
